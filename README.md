@@ -15,7 +15,7 @@ VelocityNavigator provides a simple, global command to send players to your hub 
 
 ## 🚀 Installation
 
-1.  Download the latest `.jar` file from the [Releases]() page.
+1.  Download the latest `.jar` file from the [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases/) page.
 2.  Place the `VelocityNavigator-x.x.x.jar` file into the `plugins` folder of your Velocity proxy.
 3.  Start your proxy once to generate the default configuration file.
 4.  Stop the proxy. Navigate to `plugins/velocitynavigator/` and edit the `navigator.toml` to your liking.
