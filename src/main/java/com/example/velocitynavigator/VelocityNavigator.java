@@ -16,9 +16,9 @@ import java.nio.file.Path;
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "1.0-SNAPSHOT",
+        version = "1.0-RELEASE",
         description = "A configurable lobby command for Velocity.",
-        authors = {"YourName"}
+        authors = {"DemonZDevelopment"}
 )
 public class VelocityNavigator {
 
