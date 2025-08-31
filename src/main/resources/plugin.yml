@@ -1,0 +1,16 @@
+name: SimpleLobby
+version: '${project.version}'
+main: com.example.simplelobby.SimpleLobby
+api-version: '1.21'
+author: YourName
+description: A simple lobby command for Velocity networks.
+commands:
+  lobby:
+    description: Sends you to the lobby server.
+    usage: /lobby
+    permission: simplelobby.use
+    permission-message: You do not have permission to use this command.
+permissions:
+  simplelobby.use:
+    description: Allows the user to use the /lobby command.
+    default: true
