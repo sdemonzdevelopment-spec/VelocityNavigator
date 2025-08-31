@@ -1,0 +1,54 @@
+# This is the name of the workflow as it will appear in the "Actions" tab of your GitHub repository.
+name: Build Plugin
+
+# This section defines when the workflow will run.
+on:
+  # Run on every push to the 'main' branch.
+  push:
+    branches: [ "main" ]
+  # Also run on any pull request targeting the 'main' branch.
+  pull_request:
+    branches: [ "main" ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # This workflow contains a single job called "build".
+  build:
+    # The type of runner that the job will run on. 'ubuntu-latest' is a standard choice.
+    runs-on: ubuntu-latest
+
+    # 'steps' represent a sequence of tasks that will be executed as part of the job.
+    steps:
+      # Step 1: Check out your repository code so the workflow can access it.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Java Development Kit (JDK). Version 17 is used, matching your pom.xml.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' # A popular, open-source distribution of Java
+
+      # Step 3: Cache Maven dependencies to speed up future builds.
+      # This saves the downloaded libraries so they don't need to be re-downloaded every time.
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Step 4: Build the project using Maven.
+      # The 'mvn clean install' command compiles the code and packages it into a .jar file.
+      - name: Build with Maven
+        run: mvn -B clean install # '-B' runs Maven in non-interactive (batch) mode
+
+      # Step 5: Upload the compiled .jar file as a build artifact.
+      # This makes it easy to download the finished plugin directly from the GitHub Actions run page.
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpleLobby-Plugin # The name of the artifact download
+          path: target/*.jar # The path to the file(s) to upload
