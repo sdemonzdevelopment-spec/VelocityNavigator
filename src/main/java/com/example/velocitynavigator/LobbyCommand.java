@@ -1,4 +1,4 @@
-package com.example.velocitynavigator;
+package com.demonz.velocitynavigator;
 
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
@@ -34,7 +34,6 @@ public class LobbyCommand implements SimpleCommand {
         String targetServerName;
 
         if (config.isManualLobbySetup()) {
-            // MANUAL MODE: Pick a random lobby from the configured list
             List<String> lobbies = config.getLobbyServers();
             if (lobbies == null || lobbies.isEmpty()) {
                 player.sendMessage(Component.text("Error: Manual mode is enabled, but no lobby servers are configured!", NamedTextColor.RED));
@@ -44,18 +43,18 @@ public class LobbyCommand implements SimpleCommand {
             targetServer = server.getServer(targetServerName);
 
         } else {
-            // DEFAULT MODE: Connect to the server named "lobby"
             targetServerName = "lobby";
             targetServer = server.getServer(targetServerName);
         }
 
-        // Process the connection request
         if (!targetServer.isPresent()) {
             player.sendMessage(Component.text("The lobby server '" + targetServerName + "' could not be found.", NamedTextColor.RED));
             return;
         }
         
-        if (player.getCurrentServer().map(cs -> cs.getServer().equals(targetServer.get())).orElse(false)) {
+        boolean isAlreadyConnected = player.getCurrentServer().map(cs -> cs.getServer().equals(targetServer.get())).orElse(false);
+
+        if (isAlreadyConnected && !config.isReconnectOnLobbyCommand()) {
             player.sendMessage(Component.text("You are already connected to this lobby!", NamedTextColor.YELLOW));
             return;
         }
@@ -66,7 +65,6 @@ public class LobbyCommand implements SimpleCommand {
 
     @Override
     public boolean hasPermission(final Invocation invocation) {
-        // Everyone can use this command by default.
         return true;
     }
 }
