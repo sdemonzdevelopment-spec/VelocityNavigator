@@ -1,4 +1,4 @@
-package com.example.velocitynavigator;
+package com.demonz.velocitynavigator;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
@@ -12,11 +12,12 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "1.0-RELEASE",
+        version = "1.1-RELEASE", // Consider bumping the version
         description = "A configurable lobby command for Velocity.",
         authors = {"DemonZDevelopment"}
 )
@@ -36,22 +37,24 @@ public class VelocityNavigator {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        // Load configuration
         try {
-            config = Config.load(dataDirectory);
+            config = Config.load(dataDirectory, logger);
         } catch (IOException e) {
-            logger.error("Failed to load configuration! The plugin will not function.", e);
+            logger.error("Failed to load or create configuration! The plugin will not function.", e);
             return;
         }
 
-        // Register command
         CommandManager commandManager = server.getCommandManager();
-        CommandMeta lobbyCommandMeta = commandManager.metaBuilder("lobby")
-                .aliases("hub", "spawn")
-                .build();
+        CommandMeta.Builder lobbyCommandBuilder = commandManager.metaBuilder("lobby");
         
+        List<String> aliases = config.getCommandAliases();
+        if (aliases != null && !aliases.isEmpty()) {
+            lobbyCommandBuilder.aliases(aliases.toArray(new String[0]));
+        }
+
+        CommandMeta lobbyCommandMeta = lobbyCommandBuilder.build();
         commandManager.register(lobbyCommandMeta, new LobbyCommand(server, config));
 
-        logger.info("VelocityNavigator has been enabled successfully!");
+        logger.info("A DemonZDevelopment Project - VelocityNavigator has been enabled successfully!");
     }
 }
