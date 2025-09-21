@@ -134,11 +134,20 @@ public class Config {
         this.commandCooldown = toml.getLong("settings.commandCooldown", (long) DEFAULT_COOLDOWN).intValue();
         this.lobbySelectionMode = toml.getString("settings.lobbySelectionMode", DEFAULT_SELECTION_MODE);
         this.blacklistFromServers = toml.getList("settings.blacklistFromServers", DEFAULT_BLACKLIST);
-        this.serverGroups = toml.getTable("serverGroups", new Toml().read("default = []")).toMap();
-        this.serverGroupMappings = toml.getTable("serverGroupMappings", new Toml()).toMap();
-        if (this.serverGroups.isEmpty()) this.serverGroups = DEFAULT_SERVER_GROUPS;
-        if (this.serverGroupMappings.isEmpty()) this.serverGroupMappings = DEFAULT_GROUP_MAPPINGS;
-        Toml messagesToml = toml.getTable("messages", new Toml());
+        
+        // --- FIX STARTS HERE ---
+        Toml serverGroupsToml = toml.getTable("serverGroups");
+        this.serverGroups = (serverGroupsToml != null) ? serverGroupsToml.toMap() : DEFAULT_SERVER_GROUPS;
+
+        Toml serverGroupMappingsToml = toml.getTable("serverGroupMappings");
+        this.serverGroupMappings = (serverGroupMappingsToml != null) ? serverGroupMappingsToml.toMap() : DEFAULT_GROUP_MAPPINGS;
+
+        Toml messagesToml = toml.getTable("messages");
+        if (messagesToml == null) {
+            messagesToml = new Toml(); // Create empty Toml if section doesn't exist
+        }
+        // --- FIX ENDS HERE ---
+
         this.messages.connecting = messagesToml.getString("connecting", MessagesConfig.DEFAULT_MSG_CONNECTING);
         this.messages.alreadyConnected = messagesToml.getString("already-connected", MessagesConfig.DEFAULT_MSG_ALREADY_CONNECTED);
         this.messages.noLobbyFound = messagesToml.getString("no-lobby-found", MessagesConfig.DEFAULT_MSG_NO_LOBBY_FOUND);
