@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.demonz</groupId> <artifactId>VelocityNavigator</artifactId>
-    <version>1.1-RELEASE</version> <packaging>jar</packaging>
+    <version>2.0-RELEASE</version> <packaging>jar</packaging>
 
     <name>VelocityNavigator</name>
 
