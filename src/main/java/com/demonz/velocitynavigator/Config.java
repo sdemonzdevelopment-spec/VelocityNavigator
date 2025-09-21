@@ -125,6 +125,7 @@ public class Config {
         this.messages.commandDisabled = MessagesConfig.DEFAULT_MSG_DISABLED;
     }
 
+    @SuppressWarnings("unchecked")
     private void loadValuesFromToml(Toml toml) {
         this.configVersion = CURRENT_CONFIG_VERSION;
         this.commandAliases = toml.getList("commands.aliases", DEFAULT_ALIASES);
@@ -135,18 +136,24 @@ public class Config {
         this.lobbySelectionMode = toml.getString("settings.lobbySelectionMode", DEFAULT_SELECTION_MODE);
         this.blacklistFromServers = toml.getList("settings.blacklistFromServers", DEFAULT_BLACKLIST);
         
-        // --- FIX STARTS HERE ---
         Toml serverGroupsToml = toml.getTable("serverGroups");
-        this.serverGroups = (serverGroupsToml != null) ? serverGroupsToml.toMap() : DEFAULT_SERVER_GROUPS;
+        if (serverGroupsToml != null) {
+            this.serverGroups = (Map<String, List<String>>) (Map) serverGroupsToml.toMap();
+        } else {
+            this.serverGroups = DEFAULT_SERVER_GROUPS;
+        }
 
         Toml serverGroupMappingsToml = toml.getTable("serverGroupMappings");
-        this.serverGroupMappings = (serverGroupMappingsToml != null) ? serverGroupMappingsToml.toMap() : DEFAULT_GROUP_MAPPINGS;
+        if (serverGroupMappingsToml != null) {
+            this.serverGroupMappings = (Map<String, String>) (Map) serverGroupMappingsToml.toMap();
+        } else {
+            this.serverGroupMappings = DEFAULT_GROUP_MAPPINGS;
+        }
 
         Toml messagesToml = toml.getTable("messages");
         if (messagesToml == null) {
-            messagesToml = new Toml(); // Create empty Toml if section doesn't exist
+            messagesToml = new Toml(); 
         }
-        // --- FIX ENDS HERE ---
 
         this.messages.connecting = messagesToml.getString("connecting", MessagesConfig.DEFAULT_MSG_CONNECTING);
         this.messages.alreadyConnected = messagesToml.getString("already-connected", MessagesConfig.DEFAULT_MSG_ALREADY_CONNECTED);
