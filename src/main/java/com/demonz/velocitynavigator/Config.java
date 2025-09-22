@@ -1,7 +1,6 @@
 package com.demonz.velocitynavigator;
 
 import com.moandjiezana.toml.Toml;
-import com.moandjiezana.toml.TomlWriter;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -14,10 +13,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Config {
 
-    private static final int CURRENT_CONFIG_VERSION = 5; // Bumped for new defaults/docs
+    private static final int CURRENT_CONFIG_VERSION = 5;
 
     // --- Updated, Friendlier Defaults ---
     private static final List<String> DEFAULT_ALIASES = Arrays.asList("hub", "spawn", "l");
@@ -28,7 +28,6 @@ public class Config {
     private static final String DEFAULT_SELECTION_MODE = "LEAST_PLAYERS";
     private static final List<String> DEFAULT_BLACKLIST = Collections.singletonList("auth");
     
-    // Updated default example for server groups
     private static final Map<String, List<String>> DEFAULT_SERVER_GROUPS = new HashMap<>() {{
         put("default", Arrays.asList("lobby-1", "lobby-2"));
         put("minigames", Collections.singletonList("mg_lobby"));
@@ -172,6 +171,10 @@ public class Config {
         this.messages.commandDisabled = messagesToml.getString("command-disabled", MessagesConfig.DEFAULT_MSG_DISABLED);
     }
 
+    private static String formatStringList(List<String> list) {
+        return "[" + list.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(", ")) + "]";
+    }
+    
     private static void saveConfig(File configFile, Config config) throws IOException {
         String header = config.configVersion == CURRENT_CONFIG_VERSION
             ? "# A DemonZDevelopment Project\n#        VelocityNavigator\n\n"
@@ -188,7 +191,7 @@ public class Config {
             writer.println("# aliases: A list of other commands that will act like /lobby.");
             writer.println("[commands]");
             writer.println("permission = \"" + config.getCommandPermission() + "\"");
-            writer.println("aliases = " + new TomlWriter().write(config.getCommandAliases()).trim());
+            writer.println("aliases = " + formatStringList(config.getCommandAliases()));
             writer.println();
 
             writer.println("# --- [ Settings ] ---");
@@ -203,7 +206,7 @@ public class Config {
             writer.println("reconnectOnLobbyCommand = " + config.isReconnectOnLobbyCommand());
             writer.println("commandCooldown = " + config.getCommandCooldown());
             writer.println("lobbySelectionMode = \"" + config.getLobbySelectionMode() + "\"");
-            writer.println("blacklistFromServers = " + new TomlWriter().write(config.getBlacklistFromServers()).trim());
+            writer.println("blacklistFromServers = " + formatStringList(config.getBlacklistFromServers()));
             writer.println();
 
             writer.println("# --- [ Messages ] ---");
@@ -226,7 +229,7 @@ public class Config {
             writer.println("# The 'default' group is required and is used for any server not listed in the mappings below.");
             writer.println("[serverGroups]");
             config.getServerGroups().forEach((key, value) ->
-                writer.println(key + " = " + new TomlWriter().write(value).trim())
+                writer.println(key + " = " + formatStringList(value))
             );
             writer.println();
 
