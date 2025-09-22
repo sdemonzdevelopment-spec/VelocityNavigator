@@ -17,19 +17,27 @@ import java.util.Map;
 
 public class Config {
 
-    private static final int CURRENT_CONFIG_VERSION = 4;
+    private static final int CURRENT_CONFIG_VERSION = 5; // Bumped for new defaults/docs
 
-    private static final List<String> DEFAULT_ALIASES = Arrays.asList("hub", "spawn");
+    // --- Updated, Friendlier Defaults ---
+    private static final List<String> DEFAULT_ALIASES = Arrays.asList("hub", "spawn", "l");
     private static final String DEFAULT_PERMISSION = "velocitynavigator.use";
     private static final boolean DEFAULT_MANUAL_SETUP = false;
     private static final boolean DEFAULT_RECONNECT = true;
     private static final int DEFAULT_COOLDOWN = 3;
     private static final String DEFAULT_SELECTION_MODE = "LEAST_PLAYERS";
     private static final List<String> DEFAULT_BLACKLIST = Collections.singletonList("auth");
-    private static final Map<String, List<String>> DEFAULT_SERVER_GROUPS =
-        Collections.singletonMap("default", Arrays.asList("lobby1", "lobby2"));
-    private static final Map<String, String> DEFAULT_GROUP_MAPPINGS =
-        Collections.singletonMap("minigames_server_1", "default");
+    
+    // Updated default example for server groups
+    private static final Map<String, List<String>> DEFAULT_SERVER_GROUPS = new HashMap<>() {{
+        put("default", Arrays.asList("lobby-1", "lobby-2"));
+        put("minigames", Collections.singletonList("mg_lobby"));
+    }};
+    private static final Map<String, String> DEFAULT_GROUP_MAPPINGS = new HashMap<>() {{
+        put("bedwars-1", "minigames");
+        put("skywars-1", "minigames");
+        put("survival", "default");
+    }};
 
     private int configVersion;
     private List<String> commandAliases;
@@ -55,13 +63,13 @@ public class Config {
     public MessagesConfig getMessages() { return messages; }
 
     public static class MessagesConfig {
-        private static final String DEFAULT_MSG_CONNECTING = "<green>Connecting you to the lobby...</green>";
-        private static final String DEFAULT_MSG_ALREADY_CONNECTED = "<yellow>You are already connected to this lobby!</yellow>";
-        private static final String DEFAULT_MSG_NO_LOBBY_FOUND = "<red>Error: No available lobby servers could be found.</red>";
-        private static final String DEFAULT_MSG_PLAYER_ONLY = "<red>This command can only be run by a player.</red>";
-        private static final String DEFAULT_MSG_NO_PERMISSION = "<red>You do not have permission to use this command.</red>";
-        private static final String DEFAULT_MSG_COOLDOWN = "<red>Please wait <time> seconds before using this again.</red>";
-        private static final String DEFAULT_MSG_DISABLED = "<red>You cannot use this command on this server.</red>";
+        private static final String DEFAULT_MSG_CONNECTING = "<aqua>Whoosh! Sending you to the lobby...</aqua>";
+        private static final String DEFAULT_MSG_ALREADY_CONNECTED = "<yellow>Hey! You're already in a lobby.</yellow>";
+        private static final String DEFAULT_MSG_NO_LOBBY_FOUND = "<red>Oops! We couldn't find a lobby. Please let a staff member know.</red>";
+        private static final String DEFAULT_MSG_PLAYER_ONLY = "<gray>This command is for players only, sorry!</gray>";
+        private static final String DEFAULT_MSG_NO_PERMISSION = "<red>Access Denied! You don't have permission for that.</red>";
+        private static final String DEFAULT_MSG_COOLDOWN = "<yellow>Whoa there! Please wait <time> more second(s).</yellow>";
+        private static final String DEFAULT_MSG_DISABLED = "<red>Sorry, the /lobby command is disabled on this server.</red>";
         String connecting, alreadyConnected, noLobbyFound, playerOnly, noPermission, cooldown, commandDisabled;
         public String getConnecting() { return connecting; }
         public String getAlreadyConnected() { return alreadyConnected; }
@@ -86,7 +94,7 @@ public class Config {
         if (!configFile.exists()) {
             logger.info("No config file found, creating a new one (v{})...", CURRENT_CONFIG_VERSION);
             config.setAllDefaults();
-            saveConfig(configFile, config, "# A DemonZDevelopment Project\n#        VelocityNavigator\n\n");
+            saveConfig(configFile, config);
         } else {
             Toml toml = new Toml().read(configFile);
             int loadedVersion = toml.getLong("config-version", 0L).intValue();
@@ -96,7 +104,7 @@ public class Config {
                 if (backupFile.exists()) backupFile.delete();
                 configFile.renameTo(backupFile);
                 config.loadValuesFromToml(toml);
-                saveConfig(configFile, config, "# A DemonZDevelopment Project\n#        VelocityNavigator\n# Your configuration has been automatically updated!\n\n");
+                saveConfig(configFile, config);
                 logger.info("Config update complete. Old config backed up to {}", backupFile.getName());
             } else {
                 config.loadValuesFromToml(toml);
@@ -164,34 +172,70 @@ public class Config {
         this.messages.commandDisabled = messagesToml.getString("command-disabled", MessagesConfig.DEFAULT_MSG_DISABLED);
     }
 
-    private static void saveConfig(File configFile, Config config, String header) throws IOException {
-        Map<String, Object> root = new HashMap<>();
-        root.put("config-version", config.configVersion);
-        Map<String, Object> commands = new HashMap<>();
-        commands.put("aliases", config.getCommandAliases());
-        commands.put("permission", config.getCommandPermission());
-        root.put("commands", commands);
-        Map<String, Object> settings = new HashMap<>();
-        settings.put("manualLobbySetup", config.isManualLobbySetup());
-        settings.put("reconnectOnLobbyCommand", config.isReconnectOnLobbyCommand());
-        settings.put("commandCooldown", config.getCommandCooldown());
-        settings.put("lobbySelectionMode", config.getLobbySelectionMode());
-        settings.put("blacklistFromServers", config.getBlacklistFromServers());
-        root.put("settings", settings);
-        Map<String, Object> messages = new HashMap<>();
-        messages.put("connecting", config.getMessages().getConnecting());
-        messages.put("already-connected", config.getMessages().getAlreadyConnected());
-        messages.put("no-lobby-found", config.getMessages().getNoLobbyFound());
-        messages.put("player-only", config.getMessages().getPlayerOnly());
-        messages.put("no-permission", config.getMessages().getNoPermission());
-        messages.put("cooldown", config.getMessages().getCooldown());
-        messages.put("command-disabled", config.getMessages().getCommandDisabled());
-        root.put("messages", messages);
-        root.put("serverGroups", config.getServerGroups());
-        root.put("serverGroupMappings", config.getServerGroupMappings());
-        String tomlString = new TomlWriter().write(root);
+    private static void saveConfig(File configFile, Config config) throws IOException {
+        String header = config.configVersion == CURRENT_CONFIG_VERSION
+            ? "# A DemonZDevelopment Project\n#        VelocityNavigator\n\n"
+            : "# A DemonZDevelopment Project\n#        VelocityNavigator\n# Your configuration has been automatically updated!\n\n";
+
         try (PrintWriter writer = new PrintWriter(new FileWriter(configFile))) {
-            writer.print(header + tomlString);
+            writer.println(header);
+            writer.println("# This number is used by the plugin to know when to update your config. Do not change it.");
+            writer.println("config-version = " + config.configVersion);
+            writer.println();
+
+            writer.println("# --- [ Commands ] ---");
+            writer.println("# permission: The permission node required to use the /lobby command.");
+            writer.println("# aliases: A list of other commands that will act like /lobby.");
+            writer.println("[commands]");
+            writer.println("permission = \"" + config.getCommandPermission() + "\"");
+            writer.println("aliases = " + new TomlWriter().write(config.getCommandAliases()).trim());
+            writer.println();
+
+            writer.println("# --- [ Settings ] ---");
+            writer.println("# manualLobbySetup: If false, the plugin will ALWAYS look for a server named exactly \"lobby\".");
+            writer.println("#                  If true, it will use the server groups defined below.");
+            writer.println("# reconnectOnLobbyCommand: If true, a player can type /lobby even if they are already in a lobby server to be sent to another one.");
+            writer.println("# commandCooldown: The number of seconds a player must wait before using the command again.");
+            writer.println("# lobbySelectionMode: How to pick a lobby from a list. Can be \"RANDOM\" or \"LEAST_PLAYERS\".");
+            writer.println("# blacklistFromServers: A list of servers where the /lobby command is completely disabled.");
+            writer.println("[settings]");
+            writer.println("manualLobbySetup = " + config.isManualLobbySetup());
+            writer.println("reconnectOnLobbyCommand = " + config.isReconnectOnLobbyCommand());
+            writer.println("commandCooldown = " + config.getCommandCooldown());
+            writer.println("lobbySelectionMode = \"" + config.getLobbySelectionMode() + "\"");
+            writer.println("blacklistFromServers = " + new TomlWriter().write(config.getBlacklistFromServers()).trim());
+            writer.println();
+
+            writer.println("# --- [ Messages ] ---");
+            writer.println("# All messages use the MiniMessage format for colors and styles.");
+            writer.println("# Learn more here: https://docs.adventure.kyori.net/minimessage");
+            writer.println("[messages]");
+            writer.println("connecting = '" + config.getMessages().getConnecting() + "'");
+            writer.println("already-connected = '" + config.getMessages().getAlreadyConnected() + "'");
+            writer.println("no-lobby-found = '" + config.getMessages().getNoLobbyFound() + "'");
+            writer.println("player-only = '" + config.getMessages().getPlayerOnly() + "'");
+            writer.println("no-permission = '" + config.getMessages().getNoPermission() + "'");
+            writer.println("cooldown = '" + config.getMessages().getCooldown() + "'");
+            writer.println("command-disabled = '" + config.getMessages().getCommandDisabled() + "'");
+            writer.println();
+
+            writer.println("# --- [ Contextual Lobbies ] ---");
+            writer.println("# This powerful feature lets you send players to different lobbies based on the server they are on.");
+            writer.println();
+            writer.println("# STEP 1: Define your lobby 'pools' here in [serverGroups].");
+            writer.println("# The 'default' group is required and is used for any server not listed in the mappings below.");
+            writer.println("[serverGroups]");
+            config.getServerGroups().forEach((key, value) ->
+                writer.println(key + " = " + new TomlWriter().write(value).trim())
+            );
+            writer.println();
+
+            writer.println("# STEP 2: Map your actual game servers to the lobby pools you defined above.");
+            writer.println("# Format is \"your-server-name\" = \"group-name-from-above\".");
+            writer.println("[serverGroupMappings]");
+            config.getServerGroupMappings().forEach((key, value) ->
+                writer.println("\"" + key + "\" = \"" + value + "\"")
+            );
         }
     }
 }
