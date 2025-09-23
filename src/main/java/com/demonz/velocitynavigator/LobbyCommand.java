@@ -9,6 +9,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -21,13 +22,15 @@ public class LobbyCommand implements SimpleCommand {
 
     private final ProxyServer server;
     private final Config config;
+    private final ServerPinger serverPinger;
     private final Random random = new Random();
     private final MiniMessage mm = MiniMessage.miniMessage();
     private final Map<UUID, Instant> cooldowns = new ConcurrentHashMap<>();
 
-    public LobbyCommand(ProxyServer server, Config config) {
+    public LobbyCommand(ProxyServer server, Config config, ServerPinger serverPinger) {
         this.server = server;
         this.config = config;
+        this.serverPinger = serverPinger;
     }
 
     @Override
@@ -38,38 +41,62 @@ public class LobbyCommand implements SimpleCommand {
         }
 
         Player player = (Player) invocation.source();
-        
         if (checkCooldown(player)) return;
-        if (checkBlacklist(player)) return;
 
-        Optional<RegisteredServer> targetServer = getTargetLobby(player);
+        List<String> potentialLobbies = getLobbyGroupForPlayer(player);
 
-        if (targetServer.isEmpty()) {
-            player.sendMessage(mm.deserialize(config.getMessages().getNoLobbyFound()));
-            return;
-        }
-        
-        boolean isAlreadyConnected = player.getCurrentServer()
-                .map(cs -> cs.getServer().equals(targetServer.get()))
-                .orElse(false);
+        serverPinger.getOnlineServers(potentialLobbies).thenAccept(onlineLobbies -> {
+            if (onlineLobbies == null || onlineLobbies.isEmpty()) {
+                player.sendMessage(mm.deserialize(config.getMessages().getNoLobbyFound()));
+                return;
+            }
 
-        if (isAlreadyConnected && !config.isReconnectOnLobbyCommand()) {
-            player.sendMessage(mm.deserialize(config.getMessages().getAlreadyConnected()));
-            return;
-        }
+            List<String> finalLobbyChoices = applyLobbyCycling(player, onlineLobbies);
 
-        player.sendMessage(mm.deserialize(config.getMessages().getConnecting()));
-        player.createConnectionRequest(targetServer.get()).fireAndForget();
-        setCooldown(player);
+            Optional<RegisteredServer> targetServer = findBestServer(finalLobbyChoices);
+            
+            if (targetServer.isEmpty()) {
+                player.sendMessage(mm.deserialize(config.getMessages().getNoLobbyFound()));
+                return;
+            }
+
+            boolean isAlreadyConnected = player.getCurrentServer()
+                    .map(cs -> cs.getServer().equals(targetServer.get()))
+                    .orElse(false);
+
+            if (isAlreadyConnected && !config.isReconnectOnLobbyCommand()) {
+                player.sendMessage(mm.deserialize(config.getMessages().getAlreadyConnected()));
+                return;
+            }
+
+            player.sendMessage(mm.deserialize(config.getMessages().getConnecting()));
+            player.createConnectionRequest(targetServer.get()).fireAndForget();
+            setCooldown(player);
+        });
     }
 
-    private Optional<RegisteredServer> getTargetLobby(Player player) {
-        List<String> lobbyNames = getLobbyGroupForPlayer(player);
+    private List<String> applyLobbyCycling(Player player, List<String> onlineLobbies) {
+        if (!config.isCycleLobbies()) {
+            return onlineLobbies;
+        }
+
+        return player.getCurrentServer().map(current -> {
+            String currentServerName = current.getServerInfo().getName();
+            if (onlineLobbies.size() > 1 && onlineLobbies.contains(currentServerName)) {
+                List<String> cycledList = new ArrayList<>(onlineLobbies);
+                cycledList.remove(currentServerName);
+                return cycledList;
+            }
+            return onlineLobbies;
+        }).orElse(onlineLobbies);
+    }
+
+    private Optional<RegisteredServer> findBestServer(List<String> lobbyNames) {
         if (lobbyNames == null || lobbyNames.isEmpty()) {
             return Optional.empty();
         }
 
-        String mode = config.getLobbySelectionMode();
+        String mode = config.getSelectionMode();
 
         if ("LEAST_PLAYERS".equalsIgnoreCase(mode)) {
             return lobbyNames.stream()
@@ -84,22 +111,15 @@ public class LobbyCommand implements SimpleCommand {
     }
 
     private List<String> getLobbyGroupForPlayer(Player player) {
-        return player.getCurrentServer()
-                .map(current -> current.getServerInfo().getName())
-                .map(serverName -> config.getServerGroupMappings().getOrDefault(serverName, "default"))
-                .map(groupName -> config.getServerGroups().get(groupName))
-                .orElse(config.getServerGroups().get("default"));
-    }
-    
-    private boolean checkBlacklist(Player player) {
-        boolean isBlacklisted = player.getCurrentServer()
-                .map(s -> config.getBlacklistFromServers().contains(s.getServerInfo().getName()))
-                .orElse(false);
-
-        if (isBlacklisted) {
-            player.sendMessage(mm.deserialize(config.getMessages().getCommandDisabled()));
+        if (config.isUseContextualLobbies()) {
+            return player.getCurrentServer()
+                    .map(current -> current.getServerInfo().getName())
+                    .map(serverName -> config.getContextualLobbies().getMappings().getOrDefault(serverName, "default"))
+                    .map(groupName -> config.getContextualLobbies().getGroups().get(groupName))
+                    .orElse(config.getContextualLobbies().getGroups().get("default"));
+        } else {
+            return config.getLobbyServers();
         }
-        return isBlacklisted;
     }
 
     private boolean checkCooldown(Player player) {
@@ -123,10 +143,6 @@ public class LobbyCommand implements SimpleCommand {
 
     @Override
     public boolean hasPermission(final Invocation invocation) {
-        boolean hasPerm = invocation.source().hasPermission(config.getCommandPermission());
-        if (!hasPerm && invocation.source() instanceof Player) {
-            invocation.source().sendMessage(mm.deserialize(config.getMessages().getNoPermission()));
-        }
-        return hasPerm;
+        return true;
     }
 }
