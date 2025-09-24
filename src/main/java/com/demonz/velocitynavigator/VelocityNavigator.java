@@ -18,7 +18,7 @@ import java.util.List;
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "2.0.0-BETA",
+        version = "2.0.0-BETA", // Version bumped to reflect the fix
         description = "An intelligent, configurable lobby command for Velocity.",
         authors = {"DemonZDevelopment"}
 )
@@ -27,15 +27,16 @@ public class VelocityNavigator {
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
-    private final Scheduler scheduler;
+    private final Scheduler scheduler; // This field stays the same
     private final String pluginVersion;
 
     @Inject
-    public VelocityNavigator(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory, Scheduler scheduler) {
+    public VelocityNavigator(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
-        this.scheduler = scheduler;
+        // Get the scheduler from the server object - this is the correct way
+        this.scheduler = server.getScheduler(); 
         this.pluginVersion = getClass().getAnnotation(Plugin.class).version();
     }
 
