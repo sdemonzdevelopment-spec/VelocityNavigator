@@ -16,12 +16,14 @@ public class ServerPinger {
     private final Config config;
     private final Map<String, Boolean> onlineStatusCache = new ConcurrentHashMap<>();
 
-    public ServerPinger(ProxyServer server, Config config, Scheduler scheduler) {
+    // FIX: Accept the main plugin instance in the constructor
+    public ServerPinger(Object pluginInstance, ProxyServer server, Config config, Scheduler scheduler) {
         this.server = server;
         this.config = config;
 
         if (config.isPingBeforeConnect()) {
-            scheduler.buildTask(server.getPluginManager().getPlugin("velocitynavigator").get(), onlineStatusCache::clear)
+            // FIX: Use the direct plugin instance to build the task
+            scheduler.buildTask(pluginInstance, onlineStatusCache::clear)
                     .delay(config.getPingCacheDuration(), TimeUnit.SECONDS)
                     .repeat(config.getPingCacheDuration(), TimeUnit.SECONDS)
                     .schedule();
