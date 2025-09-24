@@ -18,7 +18,7 @@ import java.util.List;
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "2.0.0-BETA", // Version bumped to reflect the fix
+        version = "2.0.2-BETA", // Version bumped to reflect the fix
         description = "An intelligent, configurable lobby command for Velocity.",
         authors = {"DemonZDevelopment"}
 )
@@ -27,7 +27,7 @@ public class VelocityNavigator {
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
-    private final Scheduler scheduler; // This field stays the same
+    private final Scheduler scheduler;
     private final String pluginVersion;
 
     @Inject
@@ -35,8 +35,7 @@ public class VelocityNavigator {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
-        // Get the scheduler from the server object - this is the correct way
-        this.scheduler = server.getScheduler(); 
+        this.scheduler = server.getScheduler();
         this.pluginVersion = getClass().getAnnotation(Plugin.class).version();
     }
 
@@ -52,7 +51,8 @@ public class VelocityNavigator {
 
         new UpdateChecker(logger, pluginVersion, dataDirectory).check();
 
-        ServerPinger serverPinger = new ServerPinger(server, config, scheduler);
+        // FIX: Pass the plugin instance ('this') directly to the ServerPinger
+        ServerPinger serverPinger = new ServerPinger(this, server, config, scheduler);
 
         CommandManager commandManager = server.getCommandManager();
         CommandMeta.Builder lobbyCommandBuilder = commandManager.metaBuilder("lobby");
