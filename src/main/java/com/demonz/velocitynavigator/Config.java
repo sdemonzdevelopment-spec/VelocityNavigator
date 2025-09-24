@@ -19,6 +19,7 @@ public class Config {
 
     private static final int CURRENT_CONFIG_VERSION = 2;
 
+    // --- Defaults ---
     private static final List<String> DEFAULT_LOBBY_SERVERS = Arrays.asList("lobby1", "lobby2");
     private static final String DEFAULT_SELECTION_MODE = "LEAST_PLAYERS";
     private static final List<String> DEFAULT_ALIASES = Arrays.asList("hub", "spawn");
@@ -50,6 +51,7 @@ public class Config {
     private ContextualLobbies contextualLobbies;
     private MessagesConfig messages;
 
+    // --- Getters ---
     public List<String> getLobbyServers() { return lobbyServers; }
     public String getSelectionMode() { return selectionMode; }
     public List<String> getCommandAliases() { return commandAliases; }
@@ -62,14 +64,19 @@ public class Config {
     public ContextualLobbies getContextualLobbies() { return contextualLobbies; }
     public MessagesConfig getMessages() { return messages; }
     
+    // --- Inner Classes for Organization ---
     public static class ContextualLobbies {
-        private Map<String, List<String>> groups;
-        private Map<String, String> mappings;
+        private Map<String, List<String>> groups = new HashMap<>();
+        private Map<String, String> mappings = new HashMap<>();
         public Map<String, List<String>> getGroups() { return groups; }
         public Map<String, String> getMappings() { return mappings; }
     }
     public static class MessagesConfig {
-        private String connecting, alreadyConnected, noLobbyFound, playerOnly, cooldown;
+        private String connecting = "";
+        private String alreadyConnected = "";
+        private String noLobbyFound = "";
+        private String playerOnly = "";
+        private String cooldown = "";
         public String getConnecting() { return connecting; }
         public String getAlreadyConnected() { return alreadyConnected; }
         public String getNoLobbyFound() { return noLobbyFound; }
@@ -77,6 +84,7 @@ public class Config {
         public String getCooldown() { return cooldown; }
     }
 
+    // --- Main Logic ---
     private Config() {
         this.messages = new MessagesConfig();
         this.contextualLobbies = new ContextualLobbies();
@@ -91,7 +99,8 @@ public class Config {
             logger.info("No config file found, creating a new one...");
             config.setAllDefaults();
         } else {
-            config.loadValuesFromToml(new Toml().read(configFile));
+            Toml toml = new Toml().read(configFile);
+            config.loadValuesFromToml(toml);
         }
         saveConfig(configFile, config);
         return config;
@@ -153,6 +162,7 @@ public class Config {
     }
 
     private static String formatStringList(List<String> list) {
+        if (list == null) return "[]";
         return "[" + list.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(", ")) + "]";
     }
 
