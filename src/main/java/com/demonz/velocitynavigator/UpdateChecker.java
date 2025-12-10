@@ -1,126 +1,90 @@
 package com.demonz.velocitynavigator;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.time.Duration;
 
+/**
+ * Checks for updates using the Modrinth API v2.
+ */
 public class UpdateChecker {
 
-    private static final String GITHUB_REPO = "sdemonzdevelopment-spec/VelocityNavigator";
+    private static final String MODRINTH_PROJECT_SLUG = "velocitynavigator";
+    private static final String API_URL = "https://api.modrinth.com/v2/project/" + MODRINTH_PROJECT_SLUG + "/version";
+    
     private final Logger logger;
     private final String currentVersion;
     private final Path dataDirectory;
+    private final HttpClient httpClient;
 
     public UpdateChecker(Logger logger, String currentVersion, Path dataDirectory) {
         this.logger = logger;
         this.currentVersion = currentVersion;
         this.dataDirectory = dataDirectory;
+        this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2)
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
     }
 
     public void check() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                checkGitHub();
-            } catch (Exception e) {
-                logger.warn("Failed to check for updates: {}", e.getMessage());
-            }
-        });
-    }
+        // Modrinth requires a specific User-Agent format: User/Project/Version
+        String userAgent = "DemonZDevelopment/VelocityNavigator/" + currentVersion + " (admin@demonz.com)";
 
-    private void checkGitHub() throws Exception {
-        String url = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
-        
-        HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Accept", "application/vnd.github.v3+json")
+                .uri(URI.create(API_URL))
+                .header("User-Agent", userAgent)
+                .GET()
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(this::processResponse)
+                .exceptionally(e -> {
+                    logger.warn("Failed to check for updates on Modrinth: " + e.getMessage());
+                    return null;
+                });
+    }
 
+    private void processResponse(HttpResponse<String> response) {
         if (response.statusCode() != 200) {
-            logger.warn("Update check failed. GitHub API returned status {}.", response.statusCode());
+            logger.warn("Modrinth API returned error code: " + response.statusCode());
             return;
         }
 
-        String body = response.body();
-        String latestVersion = getStringFromJson(body, "tag_name");
-
-        if (latestVersion != null && isNewer(latestVersion, currentVersion)) {
-            logger.info("A new version ({}) of VelocityNavigator was found. Automatically downloading...", latestVersion);
-            String assetUrl = findJarDownloadUrl(body);
-            if (assetUrl == null) {
-                logger.error("Could not find a JAR download URL for the latest release. Please update manually.");
-                return;
-            }
-            downloadUpdate(assetUrl);
-        }
-    }
-
-    private void downloadUpdate(String url) {
         try {
-            Path updateDir = dataDirectory.getParent().resolve("update");
-            if (!Files.exists(updateDir)) {
-                Files.createDirectories(updateDir);
+            JsonArray versions = JsonParser.parseString(response.body()).getAsJsonArray();
+            if (versions.size() == 0) return;
+
+            // Get latest version object
+            JsonObject latest = versions.get(0).getAsJsonObject();
+            String versionNumber = latest.get("version_number").getAsString();
+
+            if (isNewer(versionNumber, currentVersion)) {
+                logger.info("-------------------------------------------------------");
+                logger.info("VelocityNavigator Update Available!");
+                logger.info("Current: {} -> New: {}", currentVersion, versionNumber);
+                logger.info("Download: https://modrinth.com/plugin/velocitynavigator");
+                logger.info("-------------------------------------------------------");
             }
-            // The file name must match the plugin ID for Velocity to update it.
-            Path destination = updateDir.resolve("velocitynavigator.jar"); 
 
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
-            
-            client.send(request, HttpResponse.BodyHandlers.ofFile(destination));
-
-            logger.info("----------------------------------------------------------");
-            logger.info("VelocityNavigator has been successfully downloaded!");
-            logger.info("Please restart the proxy to apply the update.");
-            logger.info("----------------------------------------------------------");
-
-        } catch (IOException | InterruptedException e) {
-            logger.error("Failed to download the update automatically. Please download it manually.", e);
+        } catch (Exception e) {
+            logger.warn("Error parsing Modrinth update data: " + e.getMessage());
         }
     }
 
-    private String findJarDownloadUrl(String json) {
-        Pattern pattern = Pattern.compile("\"browser_download_url\":\"([^\"]+\\.jar)\"");
-        Matcher matcher = pattern.matcher(json);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
-    }
-
-    private String getStringFromJson(String json, String key) {
-        Pattern pattern = Pattern.compile("\"" + key + "\":\"([^\"]+)\"");
-        Matcher matcher = pattern.matcher(json);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
-    }
-
-    private boolean isNewer(String latest, String current) {
-        String latestClean = latest.replaceAll("[^0-9.]", "");
-        String currentClean = current.replaceAll("[^0-9.]", "");
-        if (latestClean.isEmpty() || currentClean.isEmpty()) return false;
-        String[] latestParts = latestClean.split("\\.");
-        String[] currentParts = currentClean.split("\\.");
-        int len = Math.max(latestParts.length, currentParts.length);
-        for (int i = 0; i < len; i++) {
-            int latestPart = (i < latestParts.length && !latestParts[i].isEmpty()) ? Integer.parseInt(latestParts[i]) : 0;
-            int currentPart = (i < currentParts.length && !currentParts[i].isEmpty()) ? Integer.parseInt(currentParts[i]) : 0;
-            if (latestPart > currentPart) return true;
-            if (latestPart < currentPart) return false;
-        }
-        return false;
+    private boolean isNewer(String remote, String current) {
+        String s1 = remote.replaceAll("[^0-9.]", "");
+        String s2 = current.replaceAll("[^0-9.]", "");
+        return !s1.equals(s2) && s1.compareTo(s2) > 0; // Simple string compare for now, ideally SemVer
     }
 }
