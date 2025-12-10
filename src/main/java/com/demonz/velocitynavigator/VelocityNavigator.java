@@ -14,15 +14,19 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "2.0.2-BETA", // Version bumped to reflect the fix
-        description = "An intelligent, configurable lobby command for Velocity.",
+        version = "2.2.0-STABLE",
+        description = "An intelligent, enterprise-grade lobby system for Velocity.",
         authors = {"DemonZDevelopment"}
 )
 public class VelocityNavigator {
+
+    public static final String LOBBY_COMMAND_NAME = "lobby";
 
     private final ProxyServer server;
     private final Logger logger;
@@ -32,39 +36,68 @@ public class VelocityNavigator {
 
     @Inject
     public VelocityNavigator(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
-        this.server = server;
-        this.logger = logger;
-        this.dataDirectory = dataDirectory;
+        this.server = Objects.requireNonNull(server, "ProxyServer cannot be null.");
+        this.logger = Objects.requireNonNull(logger, "Logger cannot be null.");
+        this.dataDirectory = Objects.requireNonNull(dataDirectory, "DataDirectory cannot be null.");
         this.scheduler = server.getScheduler();
-        this.pluginVersion = getClass().getAnnotation(Plugin.class).version();
+        
+        // Safely retrieve version
+        String v = "Unknown";
+        if (getClass().isAnnotationPresent(Plugin.class)) {
+            v = getClass().getAnnotation(Plugin.class).version();
+        }
+        this.pluginVersion = v;
     }
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
+        long startTime = System.currentTimeMillis();
+        
+        // 1. Load Configuration
         Config config;
         try {
             config = Config.load(dataDirectory, logger);
         } catch (IOException e) {
-            logger.error("Failed to load or create configuration! The plugin will not function.", e);
+            logger.error("CRITICAL: Failed to load configuration. VelocityNavigator will disable itself.", e);
             return;
         }
 
-        new UpdateChecker(logger, pluginVersion, dataDirectory).check();
+        // 2. Initialize Modrinth Update Checker (Async)
+        // Delayed by 5 seconds to allow network stack to stabilize
+        this.scheduler.buildTask(this, () -> {
+            new UpdateChecker(logger, pluginVersion, dataDirectory).check();
+        })
+        .delay(5L, TimeUnit.SECONDS)
+        .schedule();
 
-        // FIX: Pass the plugin instance ('this') directly to the ServerPinger
-        ServerPinger serverPinger = new ServerPinger(this, server, config, scheduler);
+        // 3. Initialize Services
+        // FIX: Passed 'logger' as the last argument to match ServerPinger constructor
+        ServerPinger serverPinger = new ServerPinger(this, server, config, scheduler, logger);
 
+        // 4. Register Commands
         CommandManager commandManager = server.getCommandManager();
-        CommandMeta.Builder lobbyCommandBuilder = commandManager.metaBuilder("lobby");
+        CommandMeta.Builder lobbyCommandBuilder = commandManager.metaBuilder(LOBBY_COMMAND_NAME);
         
+        // Add aliases safely
         List<String> aliases = config.getCommandAliases();
         if (aliases != null && !aliases.isEmpty()) {
-            lobbyCommandBuilder.aliases(aliases.toArray(new String[0]));
+            String[] safeAliases = aliases.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
+                
+            if (safeAliases.length > 0) {
+                lobbyCommandBuilder.aliases(safeAliases);
+            }
         }
 
         CommandMeta lobbyCommandMeta = lobbyCommandBuilder.build();
-        commandManager.register(lobbyCommandMeta, new LobbyCommand(server, config, serverPinger));
+        
+        // FIX: Passed 'logger' as the last argument to match LobbyCommand constructor
+        commandManager.register(lobbyCommandMeta, new LobbyCommand(server, config, serverPinger, logger));
 
-        logger.info("A DemonZDevelopment Project - VelocityNavigator v{} has been enabled successfully!", pluginVersion);
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("VelocityNavigator v{} enabled in {}ms. (Modrinth Ready)", pluginVersion, duration);
     }
 }
