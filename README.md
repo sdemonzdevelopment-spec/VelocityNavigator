@@ -71,7 +71,7 @@ balance_initial_join = true
 default_lobbies = ["lobby-1", "lobby-2"]
 ```
 
-See the [Configuration Guide](docs/configuration-guide.md) for all settings.
+See the [Configuration Guide](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Configuration-Guide) for all settings.
 
 ---
 
@@ -103,7 +103,7 @@ if (api != null) {
 }
 ```
 
-See the [Developer API Guide](docs/developer-api.md) for full documentation.
+See the [Developer API Guide](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Developer-API) for full documentation.
 
 ---
 
@@ -111,10 +111,10 @@ See the [Developer API Guide](docs/developer-api.md) for full documentation.
 
 | Document | Description |
 |----------|-------------|
-| [Configuration Guide](docs/configuration-guide.md) | Every `navigator.toml` setting explained |
-| [Routing Algorithms](docs/routing-algorithms.md) | Deep dive into the 3 routing modes |
-| [Initial Join Balancing](docs/initial-join-balancing.md) | How initial connection balancing works |
-| [Developer API](docs/developer-api.md) | Integrate from your own plugins |
+| [Configuration Guide](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Configuration-Guide) | Every `navigator.toml` setting explained |
+| [Routing Algorithms](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Routing-Algorithms) | Deep dive into the 3 routing modes |
+| [Initial Join Balancing](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Initial-Join-Balancing) | How initial connection balancing works |
+| [Developer API](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Developer-API) | Integrate from your own plugins |
 | [Changelog](CHANGELOG.md) | Full release history |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 
