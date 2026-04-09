@@ -1,0 +1,60 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 3.0.0)'
+        required: true
+        default: '3.0.0'
+      create_release:
+        description: 'Create a GitHub Release?'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build & Test
+        run: mvn clean verify --batch-mode --no-transfer-progress
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityNavigator-${{ inputs.version }}
+          path: target/VelocityNavigator-*.jar
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: VelocityNavigator v${{ inputs.version }}
+          body: |
+            ## VelocityNavigator v${{ inputs.version }}
+
+            ### Installation
+            1. Download `VelocityNavigator-${{ inputs.version }}.jar` below
+            2. Place it in your Velocity proxy's `plugins/` folder
+            3. Restart the proxy
+            4. Edit `plugins/velocitynavigator/navigator.toml` to configure
+
+            See [CHANGELOG.md](CHANGELOG.md) for full release notes.
+          files: target/VelocityNavigator-${{ inputs.version }}.jar
+          draft: false
+          prerelease: false
