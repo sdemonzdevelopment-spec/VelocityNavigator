@@ -1,8 +1,6 @@
 name: Build & Release
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       version:
@@ -41,22 +39,17 @@ jobs:
           name: VelocityNavigator-${{ inputs.version }}
           path: target/VelocityNavigator-*.jar
 
+      - name: Extract Release Notes
+        run: |
+          awk '/^## \[/{if (p) exit; p=1; print; next} p' CHANGELOG.md > release_notes.md
+
       - name: Create GitHub Release
         if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: VelocityNavigator v${{ inputs.version }}
-          body: |
-            ## VelocityNavigator v${{ inputs.version }}
-
-            ### Installation
-            1. Download `VelocityNavigator-${{ inputs.version }}.jar` below
-            2. Place it in your Velocity proxy's `plugins/` folder
-            3. Restart the proxy
-            4. Edit `plugins/velocitynavigator/navigator.toml` to configure
-
-            See [CHANGELOG.md](CHANGELOG.md) for full release notes.
+          body_path: release_notes.md
           files: target/VelocityNavigator-${{ inputs.version }}.jar
           draft: false
           prerelease: false
