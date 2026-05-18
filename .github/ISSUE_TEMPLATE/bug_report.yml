@@ -1,0 +1,41 @@
+name: Bug Report
+description: File a report to help us improve VelocityNavigator
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Provide as much detail as possible...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Install version X
+        2. Set config Y to true
+        3. Run command Z
+    validations:
+      required: true
+  - type: input
+    id: velocity-version
+    attributes:
+      label: Velocity Version
+      description: Output of `/velocity`
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Please share terminal or file logs related to the issue.
+      placeholder: Paste your logs here...
+    validations:
+      required: false

@@ -1,0 +1,68 @@
+package com.demonz.velocitynavigator;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class SemanticVersionTest {
+
+    @Test
+    void comparesDoubleDigitVersionsCorrectly() {
+        SemanticVersion older = SemanticVersion.parse("2.2.0-STABLE");
+        SemanticVersion newer = SemanticVersion.parse("2.10.0-STABLE");
+
+        assertTrue(newer.compareTo(older) > 0);
+    }
+
+    @Test
+    void ordersReleaseTypesCorrectly() {
+        SemanticVersion alpha = SemanticVersion.parse("3.0.0-ALPHA");
+        SemanticVersion beta = SemanticVersion.parse("3.0.0-BETA");
+        SemanticVersion stable = SemanticVersion.parse("3.0.0-STABLE");
+        SemanticVersion release = SemanticVersion.parse("3.0.0");
+
+        assertTrue(beta.compareTo(alpha) > 0);
+        assertTrue(stable.compareTo(beta) > 0);
+        assertTrue(release.compareTo(stable) > 0);
+    }
+
+    @Test
+    void parseRejectsGarbagePrefixedStrings() {
+        // "evil3.0.0injection" does not start with a digit, so the anchored regex
+        // ^(\\d+) should not match. The result should be 0.0.0 ALPHA (fallback).
+        SemanticVersion v = SemanticVersion.parse("evil3.0.0injection");
+
+        // Verify it parsed as 0.0.0, NOT as 3.0.0
+        SemanticVersion expected = SemanticVersion.parse("0.0.0-ALPHA");
+        assertEquals(0, v.compareTo(expected),
+                "Garbage-prefixed string should parse as 0.0.0 ALPHA, not 3.0.0");
+        assertTrue(v.isPrerelease(), "Fallback version should be ALPHA (prerelease)");
+    }
+
+    @Test
+    void parseAcceptsCleanVersionStrings() {
+        SemanticVersion v = SemanticVersion.parse("3.1.2");
+
+        SemanticVersion baseline = SemanticVersion.parse("3.1.1");
+        assertTrue(v.compareTo(baseline) > 0, "3.1.2 should be greater than 3.1.1");
+
+        SemanticVersion same = SemanticVersion.parse("3.1.2");
+        assertEquals(0, v.compareTo(same), "Same version strings should compare as equal");
+    }
+
+    @Test
+    void parseAnchoredRejectsPartialMatch() {
+        // Strings that don't start with a digit should all fall back to 0.0.0 ALPHA
+        // The VERSION_PATTERN uses ^ anchor: ^(\\d+)... so non-digit-prefixed strings
+        // are rejected entirely (not partially matched).
+        String[] garbageInputs = {"", "   ", "abc", "v3.0.0", "ver2.0.0", "release-1.0.0"};
+
+        SemanticVersion fallback = SemanticVersion.parse("0.0.0-ALPHA");
+        for (String input : garbageInputs) {
+            SemanticVersion v = SemanticVersion.parse(input);
+            assertEquals(0, v.compareTo(fallback),
+                    "Input '" + input + "' should parse as 0.0.0 ALPHA");
+        }
+    }
+}

@@ -1,0 +1,91 @@
+package com.demonz.velocitynavigator;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.slf4j.LoggerFactory;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+/**
+ * Tests the isAllowed logic in UpdateChecker for all channel/remote type combinations.
+ * The isAllowed method is package-private for testability.
+ */
+class UpdateCheckerChannelTest {
+
+    private UpdateChecker checker;
+
+    @BeforeEach
+    void setUp() {
+        checker = new UpdateChecker(
+                LoggerFactory.getLogger("update-checker-test"),
+                "4.0.0"
+        );
+    }
+
+    /**
+     * RELEASE channel must NEVER return true for BETA or ALPHA remote types,
+     * regardless of installedIsPrerelease.
+     */
+    @ParameterizedTest(name = "RELEASE channel, installedIsPrerelease={1}, remoteType={2} → {3}")
+    @CsvSource({
+            "RELEASE, false, RELEASE, true",
+            "RELEASE, false, BETA,   false",
+            "RELEASE, false, ALPHA,  false",
+            "RELEASE, true,  RELEASE, true",
+            "RELEASE, true,  BETA,   false",
+            "RELEASE, true,  ALPHA,  false"
+    })
+    void releaseChannelNeverAllowsPrereleaseRemotes(
+            String channel, boolean installedIsPrerelease, String remoteType, boolean expected) {
+        boolean result = checker.isAllowed(
+                Config.UpdateChannel.valueOf(channel),
+                installedIsPrerelease,
+                Config.RemoteVersionType.valueOf(remoteType)
+        );
+        assertEquals(expected, result);
+        // Extra assertion: RELEASE channel never allows BETA or ALPHA
+        if (remoteType.equals("BETA") || remoteType.equals("ALPHA")) {
+            assertFalse(result, "RELEASE channel must NEVER allow " + remoteType + " remote");
+        }
+    }
+
+    @ParameterizedTest(name = "BETA channel, installedIsPrerelease={1}, remoteType={2} → {3}")
+    @CsvSource({
+            "BETA, false, RELEASE, true",
+            "BETA, false, BETA,   true",
+            "BETA, false, ALPHA,  false",
+            "BETA, true,  RELEASE, true",
+            "BETA, true,  BETA,   true",
+            "BETA, true,  ALPHA,  false"
+    })
+    void betaChannelAllowsReleaseAndBeta(
+            String channel, boolean installedIsPrerelease, String remoteType, boolean expected) {
+        boolean result = checker.isAllowed(
+                Config.UpdateChannel.valueOf(channel),
+                installedIsPrerelease,
+                Config.RemoteVersionType.valueOf(remoteType)
+        );
+        assertEquals(expected, result);
+    }
+
+    @ParameterizedTest(name = "ALPHA channel, installedIsPrerelease={1}, remoteType={2} → {3}")
+    @CsvSource({
+            "ALPHA, false, RELEASE, true",
+            "ALPHA, false, BETA,   true",
+            "ALPHA, false, ALPHA,  true",
+            "ALPHA, true,  RELEASE, true",
+            "ALPHA, true,  BETA,   true",
+            "ALPHA, true,  ALPHA,  true"
+    })
+    void alphaChannelAllowsEverything(
+            String channel, boolean installedIsPrerelease, String remoteType, boolean expected) {
+        boolean result = checker.isAllowed(
+                Config.UpdateChannel.valueOf(channel),
+                installedIsPrerelease,
+                Config.RemoteVersionType.valueOf(remoteType)
+        );
+        assertEquals(expected, result);
+    }
+}
