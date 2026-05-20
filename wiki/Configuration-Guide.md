@@ -13,7 +13,7 @@ The configuration file `navigator.toml` is organized into these sections:
 3. `[routing]` — Selection algorithm, lobby pool, and core routing behavior
 4. `[circuit_breaker]` — Automatic failure detection
 5. `[degradation]` — Fallback behavior when all health checks fail
-6. Player Affinity — Sticky sessions (always active, not configurable yet)
+6. `[routing.affinity]` — Player Affinity (Sticky Sessions) configuration
 7. `[geo_routing]` — Geo-based routing (experimental)
 8. `[routing.contextual]` — Context-aware routing groups
 9. `[health_checks]` — Server monitoring configuration
@@ -186,13 +186,27 @@ mode = "random"
 
 ---
 
-## Player Affinity
+## `[routing.affinity]`
 
-Player affinity (sticky sessions) is **always active** in v4.0.0 and **non-configurable**. Players are preferentially routed back to the server they were previously connected to with a stickiness factor of `0.7` (70% chance of returning to their previous lobby). Affinity is automatically cleaned up when a player disconnects.
+Player affinity (sticky sessions) ensures players preferentially return to the same lobby they were last connected to during their proxy session. In v4.0.0, this is fully configurable under the `[routing.affinity]` TOML section.
 
-> **How it works**: When a player uses `/lobby`, VelocityNavigator checks if they have an affinity record. With the fixed stickiness of 0.7, there's a 70% chance they're sent back to their previous lobby and 30% chance the normal selection algorithm runs. Affinity does not apply when using `consistent_hash` mode (which provides its own deterministic stickiness).
+```toml
+[routing.affinity]
+enabled = true
+stickiness = 0.7
+```
 
-> **Note**: There is no `[routing.affinity]` config section in v4.0.0. Affinity configuration (stickiness tuning, enable/disable) may be exposed as configurable settings in a future release.
+| Setting | Type | Default | Accepted Values | Description |
+|---------|------|---------|----------------|-------------|
+| `enabled` | boolean | `true` | — | Whether player affinity is active. |
+| `stickiness` | double | `0.7` | `0.0`–`1.0` | Probability factor for session stickiness. `0.7` means a 70% chance of returning to the previous lobby and a 30% chance of running normal routing. |
+
+> **How it works**: When a player runs the lobby command, VelocityNavigator checks if they have a saved session affinity record. If stickiness is set to `0.7`, there is a 70% chance they are immediately routed to their previous lobby (provided it is online and healthy), and a 30% chance the global selection algorithm is run.
+> 
+> **Important Notes**:
+> - Session affinity records are stored in memory and are automatically cleaned up when a player disconnects from the proxy.
+> - Player affinity is naturally bypassed when using the `consistent_hash` mode, as consistent hashing provides its own deterministic, hash-based player stickiness.
+> - If the player's stickied lobby goes offline or trips the circuit breaker, the affinity system will safely skip it and route the player using the standard active algorithm.
 
 ---
 
@@ -371,6 +385,10 @@ default_lobbies = [
   { server = "lobby-2", max_players = 100, weight = 2 },
   { server = "lobby-3", max_players = 50, weight = 1 },
 ]
+
+[routing.affinity]
+enabled = true
+stickiness = 0.7
 
 [routing.contextual]
 enabled = true

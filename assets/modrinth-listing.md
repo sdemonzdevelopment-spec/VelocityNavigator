@@ -83,33 +83,40 @@ Player is connected to the best available lobby
 ## Quick Config Example
 
 ```toml
-config_version = 4
+# VelocityNavigator v4.0.0 Configuration
+
+notify_on_startup = true
+notify_admins_on_join = true
 
 [commands]
 primary = "lobby"
 aliases = ["hub", "spawn"]
+permission = "velocitynavigator.use"
+admin_aliases = ["velocitynavigator", "vn"]
 cooldown_seconds = 3
-
-[commands]
 reconnect_if_same_server = false
 
 [routing]
 selection_mode = "power_of_two"
+cycle_when_possible = true
 balance_initial_join = true
+max_retries = 2
 
-[routing.default_lobbies]
-lobby-1 = { max_players = 100, weight = 3 }
-lobby-2 = { max_players = 100, weight = 2 }
-lobby-3 = { max_players = 50, weight = 1 }
+default_lobbies = [
+  { server = "lobby-1", max_players = 100, weight = 3 },
+  { server = "lobby-2", max_players = 100, weight = 2 },
+  { server = "lobby-3", max_players = 50, weight = 1 },
+]
+
+[routing.affinity]
+enabled = true
+stickiness = 0.7
 
 [circuit_breaker]
 enabled = true
 failure_threshold = 3
-reset_time_seconds = 30
-
-[player_affinity]
-enabled = true
-stickiness = 0.7
+cooldown_seconds = 30
+half_open_max_tests = 1
 
 [health_checks]
 enabled = true
@@ -117,7 +124,6 @@ timeout_ms = 2500
 cache_seconds = 60
 
 [update_checker]
-enabled = true
 channel = "release"
 ```
 

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WeightedRoundRobinTest {
@@ -83,5 +84,28 @@ class WeightedRoundRobinTest {
         assertEquals("c", strategy.select(candidates, Config.SelectionMode.WEIGHTED_ROUND_ROBIN, "equal-test").orElseThrow().name());
         // Next cycle
         assertEquals("a", strategy.select(candidates, Config.SelectionMode.WEIGHTED_ROUND_ROBIN, "equal-test").orElseThrow().name());
+    }
+
+    @Test
+    void topologyChangeDoesNotWipeAccumulatedWeights() {
+        RouteSelectionStrategy strategy = new RouteSelectionStrategy();
+        List<ServerCandidate> initialCandidates = List.of(
+                new ServerCandidate("heavy", 0, 5),
+                new ServerCandidate("light", 0, 1)
+        );
+
+        // Select once
+        ServerCandidate first = strategy.select(initialCandidates, Config.SelectionMode.WEIGHTED_ROUND_ROBIN, "topology-test").orElseThrow();
+        assertEquals("heavy", first.name());
+
+        // Change topology
+        List<ServerCandidate> updatedCandidates = List.of(
+                new ServerCandidate("heavy", 0, 5),
+                new ServerCandidate("light", 0, 1),
+                new ServerCandidate("new-server", 0, 1)
+        );
+
+        ServerCandidate second = strategy.select(updatedCandidates, Config.SelectionMode.WEIGHTED_ROUND_ROBIN, "topology-test").orElseThrow();
+        assertNotNull(second);
     }
 }

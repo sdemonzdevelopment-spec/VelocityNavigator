@@ -17,24 +17,38 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 
 ![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png)
 
-## 🚀 v3.0.0 Feature Highlights
+## 🚀 v4.0.0 Feature Highlights
 
-- **Initial Join Balancing:** Load-balance players the absolute millisecond they hit the proxy, without them ever needing to type `/lobby`.
-- **Three routing strategies:** `least_players`, `random`, `round_robin`
-- **Contextual groups:** different game servers route to different lobby pools (e.g., bedwars games → bedwars lobbies)
-- **Automatic fallback:** if a contextual group goes offline, routing falls back to default lobbies
+- **Initial Join Balancing:** Load-balance players the absolute millisecond they hit the proxy, before they even finish authentication.
+- **7 Selection Algorithms:**
+  - `least_players` - Best for simple even load distribution.
+  - `random` - Uniformly random selection.
+  - `round_robin` - Strict sequential cycle.
+  - `power_of_two` - Selects the best of 2 random choices (3-5x better tail latency).
+  - `weighted_round_robin` - Interleaved WRR with dynamic weights.
+  - `least_connections` - Routes using connection tracking (EMA loads).
+  - `consistent_hash` - Dynamic consistent hashing on player UUID for deterministic session affinity.
+- **Player Affinity (Sticky Sessions):** Send players back to their previously connected lobby with customizable stickiness, configured via the new `[routing.affinity]` block.
+- **Contextual Groups:** Route players to game-specific lobbies based on the server they are leaving (e.g. Bedwars → Bedwars lobbies) with per-group selection overrides.
+- **Automatic Fallback Loop:** Walk through fallback groups in priority order if a contextual lobby pool is down.
 
-## Network Resilience
-- **Async health checks** with configurable timeout and TTL caching
-- **Ping coalescing** — 50 players connecting at once fires ONE ping per backend server, not 50 (prevents network storms)
-- **Pre-execution cooldown locks** — macro spam is blocked before routing even starts
+## Network Resilience & High Availability
+- **Circuit Breaker Pattern:** Skips unhealthy servers instantly. Features a full `CLOSED` ➔ `OPEN` ➔ `HALF_OPEN` state machine to isolate failing nodes before players notice.
+- **Async Health Checks:** Pings backend servers in the background with configurable timeout and TTL caching.
+- **Ping Coalescing:** Consolidates overlapping pings (e.g. 100 simultaneous player connections trigger ONE ping per server, preventing network storms).
+- **Anti-Spam Cooldowns:** Pre-execution locks block command spam before routing calculations even begin.
+- **Connection Retry:** Automatically retries connection attempts on failure, falling back dynamically across candidate servers.
 
-## Live Diagnostics
-- `/vn reload` — reload config without proxy restart
-- `/vn status` — runtime dashboard (routing mode, lobbies, health checks, metrics)
-- `/vn version` — installed version + latest version fetcher
-- `/vn debug player <name>` — preview exactly how the routing engine resolves a specific player
-- `/vn debug server <name>` — inspect a server's health check state
+## Live Diagnostics & Maintenance
+- `/vn reload` — Hot-reload the entire configuration live.
+- `/vn status` — Dashboard of current routing settings, online candidate pools, and health metrics.
+- `/vn version` — Displays the installed version and queries for available updates.
+- `/vn debug player <name>` — Live walkthrough preview of how the routing engine would resolve a connection for a specific player.
+- `/vn debug server <name>` — Detailed health telemetry snapshot of a backend server.
+- `/vn drain <server>` — Gracefully empty a lobby server for maintenance. No new connections will be routed to it.
+- `/vn undrain <server>` — Resume normal routing to a previously drained server.
+- `/vn drain status` — View all currently drained servers.
+- `/vn updatecheck` — Manually trigger a query to check for the latest plugin releases.
 
 ## Installation
 

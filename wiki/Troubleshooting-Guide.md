@@ -124,15 +124,19 @@
 
 **Symptoms**:
 - Player keeps getting routed to a server they don't want
-- Even after a server was temporarily down, players return to it
+- Even after a server was temporarily down, players return to it immediately when it recovers
 
-**Likely cause**: Player affinity (sticky sessions) is always active in v4.0.0 with a 70% stickiness factor. This is by design — players have a 70% chance of being routed back to their previous lobby.
+**Likely cause**: Player affinity (sticky sessions) is sending players back to their previously connected lobby due to the `0.7` stickiness factor.
 
 **Resolution**:
-- Affinity is currently non-configurable in v4.0.0 (hardcoded at 0.7 stickiness)
-- If a server is down, the affinity system will naturally skip it since the server won't appear in the online candidates list
-- If players are returning to a server that's back online but still having issues, the circuit breaker should eventually open and exclude it
-- Future releases may expose affinity configuration (stickiness tuning, enable/disable) as a `[routing.affinity]` config section
+- You can tune or disable player affinity entirely in your `navigator.toml` under the `[routing.affinity]` block:
+  ```toml
+  [routing.affinity]
+  enabled = true       # Set to false to completely disable sticky sessions
+  stickiness = 0.4     # Decrease from 0.7 to reduce stickiness chance (40% chance)
+  ```
+- If a server is completely down, the affinity system will naturally skip it because it is missing from the healthy candidates list.
+- If a server is running but in an unhealthy state, ensure health checks and circuit breakers are enabled so the proxy excludes it from the selection pool automatically.
 
 ---
 

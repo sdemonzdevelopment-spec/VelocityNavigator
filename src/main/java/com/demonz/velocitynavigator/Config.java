@@ -83,7 +83,8 @@ public final class Config {
                                 Map.of("bedwars-1", "bedwars"),
                                 Map.of()
                         ),
-                        2
+                        2,
+                        new AffinitySettings(true, 0.7)
                 ),
                 new HealthChecks(true, 2500, 60),
                 new Messages(
@@ -289,13 +290,15 @@ public final class Config {
             boolean balanceInitialJoin,
             List<LobbyEntry> defaultLobbies,
             Contextual contextual,
-            int maxRetries
+            int maxRetries,
+            AffinitySettings affinity
     ) {
         public Routing {
             selectionMode = selectionMode == null ? SelectionMode.LEAST_PLAYERS : selectionMode;
             defaultLobbies = immutableLobbyEntries(defaultLobbies);
             contextual = contextual == null ? new Contextual(false, true, Map.of(), Map.of(), Map.of()) : contextual;
             maxRetries = Math.max(0, maxRetries);
+            affinity = affinity == null ? new AffinitySettings(true, 0.7) : affinity;
         }
     }
 
@@ -373,6 +376,12 @@ public final class Config {
     public record GeoRoutingSettings(boolean enabled, String databasePath) {
         public GeoRoutingSettings {
             databasePath = databasePath == null ? "" : databasePath;
+        }
+    }
+
+    public record AffinitySettings(boolean enabled, double stickiness) {
+        public AffinitySettings {
+            stickiness = Math.max(0.0, Math.min(1.0, stickiness));
         }
     }
 

@@ -37,6 +37,8 @@ class ConfigManagerRoundTripTest {
         assertEquals(defaults.routing().selectionMode(), config.routing().selectionMode());
         assertEquals(defaults.routing().cycleWhenPossible(), config.routing().cycleWhenPossible());
         assertEquals(defaults.routing().maxRetries(), config.routing().maxRetries());
+        assertEquals(defaults.routing().affinity().enabled(), config.routing().affinity().enabled());
+        assertEquals(defaults.routing().affinity().stickiness(), config.routing().affinity().stickiness());
         assertEquals(defaults.healthChecks().enabled(), config.healthChecks().enabled());
         assertEquals(defaults.healthChecks().timeoutMs(), config.healthChecks().timeoutMs());
         assertEquals(defaults.healthChecks().cacheSeconds(), config.healthChecks().cacheSeconds());
@@ -226,5 +228,30 @@ class ConfigManagerRoundTripTest {
         assertEquals("lobby-table", lobbies.get(0).server());
         assertEquals(50, lobbies.get(0).maxPlayers());
         assertEquals(3, lobbies.get(0).weight());
+    }
+
+    @Test
+    void playerAffinityReadsSettingsCorrectly() throws Exception {
+        Path configPath = tempDir.resolve("navigator.toml");
+        Files.writeString(configPath, """
+                config_version = 4
+
+                [commands]
+                aliases = ["hub"]
+
+                [routing]
+                default_lobbies = ["lobby-1"]
+
+                [routing.affinity]
+                enabled = true
+                stickiness = 0.85
+                """);
+
+        ConfigManager manager = new ConfigManager(tempDir, LoggerFactory.getLogger("roundtrip-test"));
+        ConfigLoadResult result = manager.load();
+        Config config = result.config();
+
+        assertTrue(config.routing().affinity().enabled());
+        assertEquals(0.85, config.routing().affinity().stickiness(), 0.001);
     }
 }

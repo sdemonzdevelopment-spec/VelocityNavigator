@@ -56,13 +56,23 @@ class SemanticVersionTest {
         // Strings that don't start with a digit should all fall back to 0.0.0 ALPHA
         // The VERSION_PATTERN uses ^ anchor: ^(\\d+)... so non-digit-prefixed strings
         // are rejected entirely (not partially matched).
-        String[] garbageInputs = {"", "   ", "abc", "v3.0.0", "ver2.0.0", "release-1.0.0"};
+        String[] garbageInputs = {"", "   ", "abc", "ver2.0.0", "release-1.0.0"};
 
         SemanticVersion fallback = SemanticVersion.parse("0.0.0-ALPHA");
         for (String input : garbageInputs) {
             SemanticVersion v = SemanticVersion.parse(input);
             assertEquals(0, v.compareTo(fallback),
-                    "Input '" + input + "' should parse as 0.0.0 ALPHA");
+                     "Input '" + input + "' should parse as 0.0.0 ALPHA");
         }
+    }
+
+    @Test
+    void parseAcceptsVAndvPrefixedVersions() {
+        SemanticVersion lowercaseV = SemanticVersion.parse("v3.0.0");
+        SemanticVersion uppercaseV = SemanticVersion.parse("V3.0.0");
+        SemanticVersion standard = SemanticVersion.parse("3.0.0");
+
+        assertEquals(0, lowercaseV.compareTo(standard), "v3.0.0 should be parsed as 3.0.0");
+        assertEquals(0, uppercaseV.compareTo(standard), "V3.0.0 should be parsed as 3.0.0");
     }
 }

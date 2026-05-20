@@ -84,16 +84,12 @@ public final class RouteSelectionStrategy {
                 return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
             }
 
-            // Initialize or resize weight tracking
-            state.ensureCapacity(candidates.size());
-
             ServerCandidate best = null;
             int bestCurrentWeight = Integer.MIN_VALUE;
 
-            for (int idx = 0; idx < candidates.size(); idx++) {
-                ServerCandidate c = candidates.get(idx);
+            for (ServerCandidate c : candidates) {
                 int weight = c.effectiveWeight();
-                int currentWeight = state.addWeight(idx, weight);
+                int currentWeight = state.addWeight(c.name(), weight);
                 if (currentWeight > bestCurrentWeight || (currentWeight == bestCurrentWeight && best != null && c.name().compareTo(best.name()) < 0)) {
                     bestCurrentWeight = currentWeight;
                     best = c;
@@ -101,8 +97,7 @@ public final class RouteSelectionStrategy {
             }
 
             if (best != null) {
-                int bestIdx = candidates.indexOf(best);
-                state.subtractWeight(bestIdx, totalWeight);
+                state.subtractWeight(best.name(), totalWeight);
             }
 
             return best != null ? best : candidates.get(0);
@@ -119,21 +114,14 @@ public final class RouteSelectionStrategy {
      * State tracker for interleaved weighted round-robin.
      */
     static final class WeightedRoundRobinState {
-        private int[] currentWeights;
+        private final Map<String, Integer> currentWeights = new ConcurrentHashMap<>();
 
-        void ensureCapacity(int size) {
-            if (currentWeights == null || currentWeights.length != size) {
-                currentWeights = new int[size];
-            }
+        int addWeight(String serverName, int weight) {
+            return currentWeights.compute(serverName, (k, v) -> (v == null ? 0 : v) + weight);
         }
 
-        int addWeight(int index, int weight) {
-            currentWeights[index] += weight;
-            return currentWeights[index];
-        }
-
-        void subtractWeight(int index, int totalWeight) {
-            currentWeights[index] -= totalWeight;
+        void subtractWeight(String serverName, int totalWeight) {
+            currentWeights.compute(serverName, (k, v) -> (v == null ? 0 : v) - totalWeight);
         }
     }
 }

@@ -154,13 +154,19 @@ public final class ConfigManager {
 
         int maxRetries = readInt(toml, state, "routing.max_retries", defaults.routing().maxRetries(), "routing.max_retries");
 
+        Config.AffinitySettings affinity = new Config.AffinitySettings(
+                readBoolean(toml, state, "routing.affinity.enabled", defaults.routing().affinity().enabled(), "routing.affinity.enabled"),
+                readDouble(toml, state, "routing.affinity.stickiness", defaults.routing().affinity().stickiness(), "routing.affinity.stickiness")
+        );
+
         Config.Routing routing = new Config.Routing(
                 selectionMode,
                 readBoolean(toml, state, "routing.cycle_when_possible", defaults.routing().cycleWhenPossible(), "routing.cycle_when_possible", "cycle_lobbies"),
                 readBoolean(toml, state, "routing.balance_initial_join", defaults.routing().balanceInitialJoin(), "routing.balance_initial_join"),
                 defaultLobbies,
                 contextual,
-                maxRetries
+                maxRetries,
+                affinity
         );
 
         Config.HealthChecks healthChecks = new Config.HealthChecks(
@@ -410,6 +416,22 @@ public final class ConfigManager {
         return fallback;
     }
 
+    private double readDouble(Toml toml, ParseState state, String label, double fallback, String... paths) {
+        for (String path : paths) {
+            Object value = rawValue(toml, path);
+            if (value == null) {
+                continue;
+            }
+            if (value instanceof Number number) {
+                return number.doubleValue();
+            }
+            state.warnings.add(label + " expected a number. Using default value.");
+            state.normalized = true;
+            return fallback;
+        }
+        return fallback;
+    }
+
     private List<String> readStringList(Toml toml, ParseState state, String label, List<String> fallback, String... paths) {
         for (String path : paths) {
             Object value = rawValue(toml, path);
@@ -558,6 +580,12 @@ public final class ConfigManager {
         builder.append("default_lobbies = ").append(formatLobbyEntryList(config.routing().defaultLobbies())).append('\n');
         builder.append("# Maximum connection retry attempts when a selected server fails.").append('\n');
         builder.append("max_retries = ").append(config.routing().maxRetries()).append('\n').append('\n');
+
+        builder.append("[routing.affinity]").append('\n');
+        builder.append("# Player affinity controls session stickiness to previous lobby servers.").append('\n');
+        builder.append("enabled = ").append(config.routing().affinity().enabled()).append('\n');
+        builder.append("# Probability (0.0 to 1.0) of sticking to the same lobby server on reconnect.").append('\n');
+        builder.append("stickiness = ").append(config.routing().affinity().stickiness()).append('\n').append('\n');
 
         builder.append("[routing.contextual]").append('\n');
         builder.append("# Enable source-server aware routing.").append('\n');

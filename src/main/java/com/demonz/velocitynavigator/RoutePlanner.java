@@ -235,7 +235,14 @@ public final class RoutePlanner {
         List<ServerCandidate> candidates = selectableCandidates.stream()
                 .map(name -> buildCandidate(name, online.getOrDefault(name, 0), finalEntries))
                 .toList();
-        Optional<ServerCandidate> selected = selectionStrategy.select(candidates, effectiveMode, usedGroup);
+        Config.SelectionMode selectMode = effectiveMode == Config.SelectionMode.CONSISTENT_HASH
+                ? Config.SelectionMode.LEAST_PLAYERS
+                : effectiveMode;
+        Optional<ServerCandidate> selected = selectionStrategy.select(candidates, selectMode, usedGroup);
+        String finalReason = fallbackToDefault ? reason : "";
+        if (effectiveMode == Config.SelectionMode.CONSISTENT_HASH && finalReason.isEmpty()) {
+            finalReason = "Consistent hash selection was unavailable or failed; fell back to LEAST_PLAYERS.";
+        }
         return new RouteDecision(
                 normalizedSource,
                 requestedGroup,
@@ -244,7 +251,7 @@ public final class RoutePlanner {
                 onlineCandidates,
                 selected.map(ServerCandidate::name).orElse(null),
                 fallbackToDefault,
-                fallbackToDefault ? reason : "",
+                finalReason,
                 effectiveMode,
                 selectableCandidates
         );

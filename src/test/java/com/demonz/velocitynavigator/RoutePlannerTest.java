@@ -53,7 +53,8 @@ class RoutePlannerTest {
                         Map.of("bedwars-1", "bedwars"),
                         Map.of()
                 ),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -76,7 +77,8 @@ class RoutePlannerTest {
                         new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
                 ),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -106,7 +108,8 @@ class RoutePlannerTest {
                         Map.of("bedwars-1", "bedwars"),
                         Map.of()
                 ),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -127,7 +130,8 @@ class RoutePlannerTest {
                 true,
                 List.of(new Config.LobbyEntry("lobby-1", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -150,7 +154,8 @@ class RoutePlannerTest {
                         new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
                 ),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -176,7 +181,8 @@ class RoutePlannerTest {
                         new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
                 ),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -214,7 +220,8 @@ class RoutePlannerTest {
                         Map.of("bedwars-1", "bedwars"),
                         Map.of()
                 ),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -248,7 +255,8 @@ class RoutePlannerTest {
                         Map.of("bedwars-1", "bedwars"),
                         Map.of("bedwars", List.of("skywars"))  // bedwars falls back to skywars
                 ),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -271,7 +279,8 @@ class RoutePlannerTest {
                         new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
                 ),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -297,7 +306,8 @@ class RoutePlannerTest {
                         new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
                 ),
                 defaultRouting().contextual(),
-                2
+                2,
+                null
         ));
 
         RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
@@ -307,5 +317,32 @@ class RoutePlannerTest {
         assertTrue(decision.hasSelection());
         assertEquals("lobby-2", decision.selectedServer());
         assertFalse(decision.onlineCandidates().contains("lobby-1"));
+    }
+
+    @Test
+    void consistentHashFallsBackToLeastPlayersWhenPlayerIdIsNull() {
+        Config config = baseConfig(new Config.Routing(
+                Config.SelectionMode.CONSISTENT_HASH,
+                false,
+                true,
+                List.of(
+                        new Config.LobbyEntry("lobby-1", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT),
+                        new Config.LobbyEntry("lobby-2", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)
+                ),
+                defaultRouting().contextual(),
+                2,
+                null
+        ));
+
+        RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
+        ConsistentHashRing hashRing = new ConsistentHashRing();
+        planner.setHashRing(hashRing);
+
+        // Player ID is null
+        RouteDecision decision = planner.plan("", config, Map.of("lobby-1", 10, "lobby-2", 5), null);
+
+        assertTrue(decision.hasSelection());
+        assertEquals("lobby-2", decision.selectedServer()); // Least players fallback
+        assertTrue(decision.reason().contains("Consistent hash selection was unavailable or failed; fell back to LEAST_PLAYERS"));
     }
 }

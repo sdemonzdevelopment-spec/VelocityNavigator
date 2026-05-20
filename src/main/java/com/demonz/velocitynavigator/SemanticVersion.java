@@ -24,6 +24,9 @@ public final class SemanticVersion implements Comparable<SemanticVersion> {
 
     public static SemanticVersion parse(String raw) {
         String input = raw == null ? "" : raw.trim();
+        if (input.startsWith("v") || input.startsWith("V")) {
+            input = input.substring(1).trim();
+        }
         Matcher matcher = VERSION_PATTERN.matcher(input);
         if (!matcher.matches()) {
             return new SemanticVersion(input, 0, 0, 0, Qualifier.ALPHA);

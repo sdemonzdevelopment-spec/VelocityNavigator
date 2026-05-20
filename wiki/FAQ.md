@@ -114,15 +114,18 @@ Use `consistent_hash` mode — it hashes the player's UUID to deterministically 
 selection_mode = "consistent_hash"
 ```
 
-Or combine with **player affinity** for even stronger stickiness. In v4.0.0, player affinity is always active with a 70% stickiness factor — meaning there's a 70% chance players return to their previous lobby. This works alongside any selection mode:
+Or combine with **player affinity** for even stronger stickiness. In v4.0.0, player affinity is fully configurable and enabled by default with a `0.7` stickiness factor — meaning there's a 70% chance players return to their previous lobby. This works alongside any selection mode and can be tuned or disabled in your config:
 
 ```toml
 [routing]
 selection_mode = "power_of_two"
-# Affinity is always active (0.7 stickiness) — no config needed
+
+[routing.affinity]
+enabled = true
+stickiness = 0.7   # 70% chance to return to previous lobby
 ```
 
-> **Note**: Affinity configuration (stickiness tuning, enable/disable) may be exposed as a `[routing.affinity]` config section in a future release. In v4.0.0, it's hardcoded at 0.7 stickiness.
+You can disable it entirely by setting `enabled = false` or adjust `stickiness` anywhere from `0.0` (disabled) to `1.0` (always return to the previous lobby if it's healthy).
 
 ---
 

@@ -536,7 +536,18 @@ public final class VelocityNavigator implements NavigatorAPI {
         this.hashRing = new ConsistentHashRing();
 
         // Initialize affinity service
-        this.affinityService = new PlayerAffinityService(0.7);
+        if (config.routing().affinity().enabled()) {
+            double stickiness = config.routing().affinity().stickiness();
+            if (this.affinityService == null) {
+                this.affinityService = new PlayerAffinityService(stickiness);
+            } else {
+                PlayerAffinityService oldService = this.affinityService;
+                this.affinityService = new PlayerAffinityService(stickiness);
+                oldService.getAll().forEach(this.affinityService::setAffinity);
+            }
+        } else {
+            this.affinityService = null;
+        }
 
         // Initialize rate tracker
         this.rateTracker = new ConnectionRateTracker(60);
