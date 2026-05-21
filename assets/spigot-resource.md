@@ -85,6 +85,14 @@ No. Every field is validated individually — bad values get a warning log and a
 
 ---
 
+## ⚡ Sponsored by Nex EU Hosting
+
+Looking for high-performance, reliable, and affordable hosting for your Minecraft server proxy? Check out **[Nex EU Hosting](https://nexeu.zip/)**! Premium hardware, instant setup, and 24/7 support.
+
+👉 **[Get Premium Hosting at nexeu.zip](https://nexeu.zip/)**
+
+---
+
 ## 📖 Documentation & Links
 
 - **GitHub Repository**: [View Source](https://github.com/sdemonzdevelopment-spec/VelocityNavigator)
