@@ -147,11 +147,11 @@ channel = "release"
 
 ---
 
-## ⚡ Sponsored by Nex EU Hosting
+## ⚡ Sponsored by Nexeu Hosting
 
 [![nexeu-sponsor](https://whodoesntloveavatars.s3.fra.databucket.eu/assets/promo.png)](https://nexeu.zip/)
 
-Looking for high-performance, reliable, and affordable hosting for your Minecraft server proxy? Check out **[Nex EU Hosting](https://nexeu.zip/)**! Premium hardware, instant setup, and 24/7 support.
+Looking for high-performance, reliable, and affordable hosting for your Minecraft server proxy? Check out **[Nexeu Hosting](https://nexeu.zip/)**! Premium hardware, instant setup, and 24/7 support.
 
 👉 **[Get Premium Hosting at nexeu.zip](https://nexeu.zip/)**
 
