@@ -1,6 +1,6 @@
 # VelocityNavigator Spigot Resource Copy
 
-![VelocityNavigator Banner](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png)
+![VelocityNavigator Banner](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4)
 
 ## Title
 
@@ -15,7 +15,7 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 > **This is a Velocity-only plugin.** It does not run on Bukkit, Spigot, or Paper backends.
 > This Spigot listing exists for visibility and download discovery. Install the JAR on your **Velocity proxy**, not your backend servers.
 
-![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png)
+![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
 
 ## 🚀 v4.0.0 Feature Highlights
 
@@ -101,7 +101,7 @@ No. Every field is validated individually — bad values get a warning log and a
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png" alt="VelocityNavigator Icon" width="64">
+  <img src="https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png?v=4" alt="VelocityNavigator Icon" width="64">
   <br>
   <strong>Built with ❤️ by DemonZ Development</strong>
   <br>

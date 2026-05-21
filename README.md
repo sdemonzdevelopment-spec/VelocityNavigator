@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero-banner.png" alt="VelocityNavigator Banner" width="800">
+  <img src="assets/hero-banner.png?v=4" alt="VelocityNavigator Banner" width="800">
 </p>
 
 <h1 align="center">VelocityNavigator</h1>
@@ -187,7 +187,7 @@ mvn clean verify
 ---
 
 <p align="center">
-  <img src="assets/plugin-icon.png" alt="VelocityNavigator Icon" width="64">
+  <img src="assets/plugin-icon.png?v=4" alt="VelocityNavigator Icon" width="64">
   <br>
   <strong>Built with ❤️ by <a href="https://github.com/sdemonzdevelopment-spec">DemonZ Development</a></strong>
   <br>

@@ -1,12 +1,12 @@
 # VelocityNavigator Modrinth Listing
 
-![VelocityNavigator Banner](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png)
+![VelocityNavigator Banner](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4)
 
 **VelocityNavigator v4** is a production-grade Velocity proxy plugin that introduces absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, and a highly context-aware `/lobby` system.
 
 No more funneling all new players into a single hub. No more sending players to offline servers. No more guessing which lobby they ended up on.
 
-![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png)
+![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
 
 ## What's New in v4
 
@@ -154,7 +154,7 @@ channel = "release"
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png" alt="VelocityNavigator Icon" width="64">
+  <img src="https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png?v=4" alt="VelocityNavigator Icon" width="64">
   <br>
   <strong>Built with care by DemonZ Development</strong>
   <br>

@@ -1,4 +1,4 @@
-![VelocityNavigator Logo](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png)
+![VelocityNavigator Logo](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png?v=4)
 
 ## Navigation Menu
 

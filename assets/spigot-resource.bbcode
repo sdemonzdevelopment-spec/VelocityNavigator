@@ -1,0 +1,106 @@
+[CENTER]
+[IMG]https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4[/IMG]
+
+[SIZE=6][B][COLOR=#00bfff]VelocityNavigator v4[/COLOR][/B][/SIZE]
+[SIZE=4][I]Premium lobby navigation and intelligent load balancing for Velocity proxies.[/I][/SIZE]
+[SIZE=3]Built with ❤️ by [URL='https://github.com/sdemonzdevelopment-spec']DemonZ Development[/URL][/SIZE]
+
+[HR][/HR]
+
+[SIZE=4][B][COLOR=#00bfff]⚠️ IMPORTANT PLATFORM NOTE[/COLOR][/B][/SIZE]
+[B]This is a Velocity-only plugin.[/B] It does not run on Bukkit, Spigot, or Paper backends.
+This listing exists for visibility and download discovery. Install the JAR on your [B]Velocity proxy[/B], not your backend servers.
+
+[HR][/HR]
+
+[IMG]https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4[/IMG]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]🧠 v4.0.0 Feature Highlights[/COLOR][/B][/SIZE]
+
+[LIST]
+[*][B][COLOR=#00bfff]Initial Join Balancing[/COLOR][/B] — Bypasses Velocity's static fallback engine to perfectly split initial proxy connection waves across lobbies before authentication completes.
+[*][B][COLOR=#00bfff]7 Load Balancing Algorithms[/COLOR][/B] — Pick the perfect strategy for your network:
+[LIST]
+[*][B]least_players[/B] - Simple even load distribution (classic).
+[*][B]random[/B] - Uniformly random selection.
+[*][B]round_robin[/B] - Strict sequential cycling.
+[*][B]power_of_two[/B] (Recommended) - Picks two random candidates and routes to the one with fewer players (3-5x better tail latency).
+[*][B]weighted_round_robin[/B] - Dynamic, interleaved round-robin respecting individual server weights.
+[*][B]least_connections[/B] - Tracks connection EMA (Exponential Moving Average) rates for bursty networks.
+[*][B]consistent_hash[/B] - Consistent hashing ring on player UUID for deterministic session affinity.
+[/LIST]
+[*][B][COLOR=#00bfff]Player Affinity (Sticky Sessions)[/COLOR][/B] — Routes players back to their previously connected lobby with customizable stickiness probability.
+[*][B][COLOR=#00bfff]Contextual Routing & Groups[/COLOR][/B] — Segment players to game-specific lobbies based on the server they are leaving (e.g. Skyblock → Skyblock lobbies) with per-group algorithm overrides.
+[*][B][COLOR=#00bfff]Automatic Fallback Chains[/COLOR][/B] — Priority-ordered fallback loops when a contextual lobby group is entirely down.
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]🛡️ Network Resilience & HA[/COLOR][/B][/SIZE]
+
+[LIST]
+[*][B]Circuit Breaker Pattern[/B] — Monitors and isolates unhealthy servers instantly. Features a full [B]CLOSED ➔ OPEN ➔ HALF_OPEN[/B] state machine to bypass failing nodes before players experience timeouts.
+[*][B]Async Health Checks[/B] — Background server pings with configurable timeout and TTL caching.
+[*][B]Ping Coalescing[/B] — Merges overlapping pings into a single request, preventing "ping storms" when hundreds of players join at once.
+[*][B]Anti-Spam Cooldowns[/B] — Pre-execution locks that prevent macro abuse of lobby commands.
+[*][B]Connection Retry & Fallback[/B] — Automatically retries connection attempts on failure, moving down candidate lists dynamically.
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]🔧 Commands & Diagnostics[/COLOR][/B][/SIZE]
+[I]All admin commands support tab-completion and require [COLOR=#00bfff]velocitynavigator.admin[/COLOR] permission.[/I]
+
+[LIST]
+[*][B]/lobby[/B] (or /hub, /spawn) — Routes the player to the best available lobby.
+[*][B]/vn reload[/B] — Live hot-reload of the configuration without restarting the proxy.
+[*][B]/vn status[/B] — Premium runtime dashboard showing current strategies, health pools, drain flags, and load distribution.
+[*][B]/vn debug player <name>[/B] — Runs a dry-run step-by-step trace showing exactly how the routing engine resolves a player's destination.
+[*][B]/vn debug server <name>[/B] — View a detailed health telemetry snapshot of a specific server.
+[*][B]/vn drain <server>[/B] — Gracefully empties a lobby server for maintenance. No new connections will be routed to it.
+[*][B]/vn undrain <server>[/B] — Resume routing to a previously drained server.
+[*][B]/vn drain status[/B] — Lists all currently drained lobby servers.
+[*][B]/vn updatecheck[/B] — Manually query for plugin updates.
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]📦 Quick Installation[/COLOR][/B][/SIZE]
+
+[LIST=1]
+[*]Install [B]Velocity 3.x[/B] on your proxy.
+[*]Place the [B]VelocityNavigator-4.0.0.jar[/B] in your `plugins/` directory.
+[*]Start the proxy once — a highly documented [B]navigator.toml[/B] will generate automatically.
+[*]Edit the config to specify your lobby servers and preferred strategy.
+[*]Run [B]/vn reload[/B] to apply changes!
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]🔑 Permissions[/COLOR][/B][/SIZE]
+
+[LIST]
+[*][B]velocitynavigator.use[/B] — Allows use of [COLOR=#00bfff]/lobby[/COLOR] (Default: true)
+[*][B]velocitynavigator.admin[/B] — Access to all administrative diagnostic commands (Default: false)
+[*][B]velocitynavigator.bypass.cooldown[/B] — Bypasses lobby command cooldown timer (Default: false)
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=5][B][COLOR=#00bfff]📖 Documentation & Source[/COLOR][/B][/SIZE]
+
+[LIST]
+[*][URL='https://github.com/sdemonzdevelopment-spec/VelocityNavigator']GitHub Repository[/URL] · View source, submit issues, or contribute
+[*][URL='https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Quick-Start-Guide']Quick Start Guide[/URL] · Up and running in 5 minutes
+[*][URL='https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Configuration-Guide']Configuration Guide[/URL] · Complete settings explanation
+[*][URL='https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Routing-Algorithms']Routing Algorithms Deep Dive[/URL] · How the 7 selection modes work under the hood
+[/LIST]
+
+[HR][/HR]
+
+[IMG]https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/plugin-icon.png?v=4[/IMG]
+[SIZE=3][B]Engineered for Scale by [COLOR=#00bfff]DemonZ Development[/COLOR][/B][/SIZE]
+[I]Premium Minecraft infrastructure, engineered for performance.[/I]
+[/CENTER]
