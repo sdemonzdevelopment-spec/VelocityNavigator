@@ -2,6 +2,9 @@
 
 ![VelocityNavigator Banner](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4)
 
+> [!IMPORTANT]
+> **Velocity-Only Proxy Plugin:** VelocityNavigator runs exclusively on your **Velocity proxy server (3.x)**. It will not load or function if installed on Bukkit, Spigot, Paper, Purpur, or Folia backend servers. Install the JAR on your **Velocity proxy's plugins folder**, not your backend servers.
+
 **VelocityNavigator v4** is a production-grade Velocity proxy plugin that introduces absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, and a highly context-aware `/lobby` system.
 
 No more funneling all new players into a single hub. No more sending players to offline servers. No more guessing which lobby they ended up on.
@@ -79,6 +82,24 @@ Player is connected to the best available lobby
 | `/vn undrain <server>` | `velocitynavigator.admin` | Remove drain mode from a server |
 | `/vn drain status` | `velocitynavigator.admin` | View all drained servers |
 | `/vn updatecheck` | `velocitynavigator.admin` | Check for plugin updates |
+| `/vn version` | `velocitynavigator.admin` | Display installed version |
+
+## Quick Installation
+
+1. Install **Velocity 3.x** on your proxy server.
+2. Place the **VelocityNavigator** JAR into your proxy's `plugins/` directory.
+3. Start the proxy once to auto-generate a highly-commented configuration file (`navigator.toml`).
+4. Edit `plugins/velocitynavigator/navigator.toml` to define your lobby servers and preferred routing strategies.
+5. Run `/vn reload` or restart your proxy to apply the configuration.
+
+## Permissions
+
+| Permission | Default | Description |
+|------------|---------|-------------|
+| `velocitynavigator.use` | `true` | Allows players to use the primary `/lobby` command (and aliases like `/hub`). |
+| `velocitynavigator.admin` | `false` | Access to all administrative diagnostic and maintenance commands (`/vn`). |
+| `velocitynavigator.bypass.cooldown` | `false` | Bypasses the configured lobby command anti-spam cooldown timer. |
+| `velocitynavigator.bypasscooldown` | `false` | Legacy alias for bypassing the lobby command cooldown timer. |
 
 ## Quick Config Example
 
@@ -148,12 +169,17 @@ Looking for high-performance, reliable, and affordable hosting for your Minecraf
 ## Documentation & Links
 
 - **GitHub Repository**: [View Source](https://github.com/sdemonzdevelopment-spec/VelocityNavigator)
+- **Quick Start Guide**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Quick-Start-Guide)
 - **Configuration Guide**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Configuration-Guide)
 - **Routing Algorithms**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Routing-Algorithms)
-- **Circuit Breaker**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Circuit-Breaker)
+- **Algorithm Visualizations**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Algorithm-Visualizations)
+- **Contextual Routing Guide**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Contextual-Routing-Guide)
+- **Circuit Breaker**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Configuration-Guide#circuit_breaker)
 - **Initial Join Balancing**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Initial-Join-Balancing)
 - **Operations Runbook**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Operations-Runbook)
-- **Migration Guide (v3 to v4)**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Migration-Guide)
+- **Troubleshooting Guide**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Troubleshooting-Guide)
+- **FAQ**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/FAQ)
+- **Migration Guide (v3 to v4)**: [Read Here](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Migration-Guide-v3-to-v4)
 
 ---
 
