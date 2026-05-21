@@ -187,6 +187,49 @@
 
 ---
 
+## Command & Permission Issues
+
+### Command `/lobby` is unrecognized or says "No permission"
+
+**Symptoms**:
+- Ordinary players type `/lobby` (or configured aliases like `/hub`) and get "You do not have permission to use this command."
+- The command doesn't show up in chat autocomplete/tab-completion for players.
+
+**Likely cause**: The strict default permission node check (`velocitynavigator.use`) is enforced in v4.
+
+**Debugging steps**:
+1. Check if the player has the `velocitynavigator.use` permission.
+2. Check the `permission` setting in `navigator.toml`.
+
+**Resolution**:
+- Assign players the `velocitynavigator.use` permission node in your permissions manager (e.g. LuckPerms).
+- **OR** disable the permission requirement completely by setting it to `"none"` in your `navigator.toml`:
+  ```toml
+  [commands]
+  permission = "none"
+  ```
+- Run `/vn reload` to apply configuration changes.
+
+---
+
+### Players get blocked by spam cooldowns
+
+**Symptoms**:
+- Players see the cooldown message: "Please wait X more second(s)." when trying to run the `/lobby` command.
+
+**Likely cause**: v4.0.0 enforces a default 3-second anti-spam cooldown on command executions.
+
+**Resolution**:
+- Grant bypass permission to players/groups who shouldn't have a cooldown: `velocitynavigator.bypass.cooldown` (or legacy `velocitynavigator.bypasscooldown`).
+- **OR** reduce/disable the cooldown in your `navigator.toml`:
+  ```toml
+  [commands]
+  cooldown_seconds = 0
+  ```
+- Run `/vn reload` to apply configuration changes.
+
+---
+
 ## Config Issues
 
 ### Changes aren't taking effect
