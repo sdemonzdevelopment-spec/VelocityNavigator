@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4" alt="VelocityNavigator Banner">
+  <img src="hero-banner.png" alt="VelocityNavigator Banner">
 </p>
 
 # VelocityNavigator
