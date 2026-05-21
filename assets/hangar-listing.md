@@ -136,15 +136,6 @@ channel = "release"
 - **Velocity:** `3.x`
 - **Java:** `17+`
 
-## Hangar Metadata
-
-| Field | Value |
-|-------|-------|
-| **Category** | Proxy / Utility |
-| **License** | Apache-2.0 |
-| **Supported Platforms** | Velocity |
-| **Keywords** | lobby, load-balancer, routing, velocity, proxy, navigation, hub |
-
 ---
 
 ## ⚡ Sponsored by Nexeu Hosting
