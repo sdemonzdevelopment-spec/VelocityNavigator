@@ -247,16 +247,16 @@
 2. **Expected output** (if update available):
    ```
    A new version of VelocityNavigator is available!
-   Current: v4.0.0 | Latest: v4.1.0
+    Current: v4.1.0 | Latest: v4.2.0
    Download: https://modrinth.com/plugin/velocitynavigator
    ```
 
 3. **Expected output** (if up to date):
    ```
-   VelocityNavigator is up to date! (v4.0.0)
+    VelocityNavigator is up to date! (v4.1.0)
    ```
 
-> **Note**: v4 replaced the automatic recurring update checker with a one-time startup check. Use `/vn updatecheck` for manual checks at any time.
+> **Note**: v4.1 re-introduced the periodic update checker with scheduled checks and exponential HTTP 429 backoff (up to 4 hours). Use `/vn updatecheck` for manual checks at any time.
 
 ---
 

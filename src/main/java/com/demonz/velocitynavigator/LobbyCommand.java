@@ -13,11 +13,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class LobbyCommand implements SimpleCommand {
 
     private final VelocityNavigator plugin;
+    private final java.util.concurrent.atomic.AtomicLong degradedCounter = new java.util.concurrent.atomic.AtomicLong(0);
 
     public LobbyCommand(VelocityNavigator plugin) {
         this.plugin = plugin;
@@ -39,7 +41,7 @@ public final class LobbyCommand implements SimpleCommand {
         if (!hasBypassCooldown(player)) {
             OptionalLong secondsRemaining = plugin.cooldowns().secondsRemaining(player.getUniqueId());
             if (secondsRemaining.isPresent()) {
-                player.sendMessage(MessageFormatter.render(config.messages().cooldown(), Map.of("time", String.valueOf(secondsRemaining.getAsLong()))));
+                player.sendMessage(MessageFormatter.render(config.messages().cooldown(), Map.of("time", String.valueOf(secondsRemaining.getAsLong())), player));
                 return;
             }
         }
@@ -74,7 +76,7 @@ public final class LobbyCommand implements SimpleCommand {
                         Optional<RegisteredServer> target = plugin.server().getServer(degraded);
                         if (target.isPresent()) {
                             player.sendMessage(MessageFormatter.render(config.messages().connecting(),
-                                    Map.of("server", degraded, "player", player.getUsername())));
+                                    Map.of("server", degraded, "player", player.getUsername()), player));
                             connectWithRetry(player, config, target.get(), decision, 0, new HashSet<>());
                             return;
                         }
@@ -83,13 +85,18 @@ public final class LobbyCommand implements SimpleCommand {
             }
 
             plugin.cooldowns().clear(player.getUniqueId());
+            String noLobbyMsg = config.messages().noLobbyFound();
+            if (config.lobbyFallback() != null && "disconnect".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())) {
+                noLobbyMsg = config.lobbyFallback().noServerMessage();
+            }
             player.sendMessage(MessageFormatter.render(
-                    config.messages().noLobbyFound(),
+                    noLobbyMsg,
                     Map.of(
                             "reason", decision.reason(),
                             "mode", decision.selectionMode().configValue(),
                             "player", player.getUsername()
-                    )
+                    ),
+                    player
             ));
             return;
         }
@@ -101,7 +108,7 @@ public final class LobbyCommand implements SimpleCommand {
         if (sameServer && !config.commands().reconnectIfSameServer()) {
             plugin.cooldowns().clear(player.getUniqueId());
             player.sendMessage(MessageFormatter.render(config.messages().alreadyConnected(),
-                    Map.of("server", targetName, "player", player.getUsername())));
+                    Map.of("server", targetName, "player", player.getUsername()), player));
             return;
         }
 
@@ -109,12 +116,12 @@ public final class LobbyCommand implements SimpleCommand {
         if (target.isEmpty()) {
             plugin.cooldowns().clear(player.getUniqueId());
             player.sendMessage(MessageFormatter.render(config.messages().noLobbyFound(),
-                    Map.of("reason", "The selected server is no longer registered.", "player", player.getUsername())));
+                    Map.of("reason", "The selected server is no longer registered.", "player", player.getUsername()), player));
             return;
         }
 
         player.sendMessage(MessageFormatter.render(config.messages().connecting(),
-                Map.of("server", targetName, "player", player.getUsername())));
+                Map.of("server", targetName, "player", player.getUsername()), player));
         connectWithRetry(player, config, target.get(), decision, 0, new HashSet<>());
     }
 
@@ -144,7 +151,13 @@ public final class LobbyCommand implements SimpleCommand {
                     plugin.rateTracker().recordConnection(target.getServerInfo().getName());
                 }
                 if (plugin.affinityService() != null) {
-                    plugin.affinityService().setAffinity(player.getUniqueId(), target.getServerInfo().getName());
+                    UUID affinityUuid = player.getUniqueId();
+                    if (plugin.bedrockHandler() != null && plugin.bedrockHandler().isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
+                        if (plugin.bedrockHandler().isBedrockPlayer(player, config)) {
+                            affinityUuid = FloodgateIntegration.getJavaUUID(player);
+                        }
+                    }
+                    plugin.affinityService().setAffinity(affinityUuid, target.getServerInfo().getName());
                 }
                 return;
             }
@@ -159,7 +172,7 @@ public final class LobbyCommand implements SimpleCommand {
                                 Map.of("attempt", String.valueOf(attempt + 1),
                                        "max", String.valueOf(maxRetries),
                                        "player", player.getUsername(),
-                                       "server", nextServer)));
+                                       "server", nextServer), player));
                         connectWithRetry(player, config, nextTarget.get(), decision, attempt + 1, triedServers);
                         return;
                     }
@@ -176,6 +189,11 @@ public final class LobbyCommand implements SimpleCommand {
             } else {
                 player.sendMessage(Component.text("Failed to connect after " + (attempt + 1) + " attempt(s).", NamedTextColor.RED));
             }
+        }).exceptionally(throwable -> {
+            plugin.cooldowns().clear(player.getUniqueId());
+            player.sendMessage(Component.text("An error occurred while connecting to the lobby.", NamedTextColor.RED));
+            plugin.logger().error("[VelocityNavigator] connectWithRetry failed for {}", player.getUsername(), throwable);
+            return null;
         });
     }
 
@@ -211,8 +229,8 @@ public final class LobbyCommand implements SimpleCommand {
         return switch (mode) {
             case RANDOM -> candidates.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidates.size()));
             case ROUND_ROBIN -> {
-                // Use routing stats counter for simple round-robin rotation
-                long idx = plugin.routingStats().totalConnections();
+                // Use independent degraded atomic counter for round-robin rotation
+                long idx = degradedCounter.getAndIncrement();
                 yield candidates.get((int) (idx % candidates.size()));
             }
             // Modes that need player-count data — fall back to random

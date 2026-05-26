@@ -195,7 +195,7 @@
 - Ordinary players type `/lobby` (or configured aliases like `/hub`) and get "You do not have permission to use this command."
 - The command doesn't show up in chat autocomplete/tab-completion for players.
 
-**Likely cause**: The strict default permission node check (`velocitynavigator.use`) is enforced in v4.
+**Likely cause**: A custom `commands.permission` is set in the config, or the default `"none"` was overridden in a prior version.
 
 **Debugging steps**:
 1. Check if the player has the `velocitynavigator.use` permission.
@@ -217,7 +217,7 @@
 **Symptoms**:
 - Players see the cooldown message: "Please wait X more second(s)." when trying to run the `/lobby` command.
 
-**Likely cause**: v4.0.0 enforces a default 3-second anti-spam cooldown on command executions.
+**Likely cause**: v4.1.0 enforces a default 3-second anti-spam cooldown on command executions.
 
 **Resolution**:
 - Grant bypass permission to players/groups who shouldn't have a cooldown: `velocitynavigator.bypass.cooldown` (or legacy `velocitynavigator.bypasscooldown`).
@@ -293,7 +293,7 @@
 **Likely cause**: Using v3 message format without the v4 placeholder.
 
 **Resolution**:
-- Make sure you're running v4.0.0+
+- Make sure you're running v4.1.0+
 - The `<player>` placeholder is supported in all message fields:
   ```toml
   [messages]

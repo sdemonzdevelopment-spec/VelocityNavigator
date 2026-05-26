@@ -14,12 +14,12 @@ import java.util.UUID;
 public final class RoutePlanner {
 
     private final RouteSelectionStrategy selectionStrategy;
-    private DrainService drainService;
-    private CircuitBreaker circuitBreaker;
-    private ServerLoadTracker loadTracker;
-    private ConsistentHashRing hashRing;
-    private PlayerAffinityService affinityService;
-    private ConnectionRateTracker rateTracker;
+    private volatile DrainService drainService;
+    private volatile CircuitBreaker circuitBreaker;
+    private volatile ServerLoadTracker loadTracker;
+    private volatile ConsistentHashRing hashRing;
+    private volatile PlayerAffinityService affinityService;
+    private volatile ConnectionRateTracker rateTracker;
 
     public RoutePlanner(RouteSelectionStrategy selectionStrategy) {
         this.selectionStrategy = Objects.requireNonNull(selectionStrategy, "selectionStrategy");
@@ -161,6 +161,21 @@ public final class RoutePlanner {
         }
 
         if (configuredEntries.isEmpty()) {
+            if (config.lobbyFallback() != null && "fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
+                    && !config.lobbyFallback().fallbackServer().isBlank()) {
+                return new RouteDecision(
+                        normalizedSource,
+                        requestedGroup,
+                        usedGroup,
+                        lobbyEntryNames(configuredEntries),
+                        onlineCandidates,
+                        config.lobbyFallback().fallbackServer(),
+                        fallbackToDefault,
+                        "Fell back to fallback server: " + config.lobbyFallback().fallbackServer(),
+                        effectiveMode,
+                        selectableCandidates
+                );
+            }
             return new RouteDecision(
                     normalizedSource,
                     requestedGroup,
@@ -169,15 +184,30 @@ public final class RoutePlanner {
                     onlineCandidates,
                     null,
                     fallbackToDefault,
-                    reason.isBlank() ? "No configured lobbies were available for group '" + usedGroup + "'." : reason,
+                    reason.isBlank() ? (config.lobbyFallback() != null ? config.lobbyFallback().noServerMessage() : "No configured lobbies were available for group '" + usedGroup + "'.") : reason,
                     effectiveMode
             );
         }
 
         if (selectableCandidates.isEmpty()) {
+            if (config.lobbyFallback() != null && "fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
+                    && !config.lobbyFallback().fallbackServer().isBlank()) {
+                return new RouteDecision(
+                        normalizedSource,
+                        requestedGroup,
+                        usedGroup,
+                        lobbyEntryNames(configuredEntries),
+                        onlineCandidates,
+                        config.lobbyFallback().fallbackServer(),
+                        fallbackToDefault,
+                        "Fell back to fallback server: " + config.lobbyFallback().fallbackServer(),
+                        effectiveMode,
+                        selectableCandidates
+                );
+            }
             String finalReason = reason;
             if (finalReason.isBlank()) {
-                finalReason = "No online lobbies were available for group '" + usedGroup + "'.";
+                finalReason = config.lobbyFallback() != null ? config.lobbyFallback().noServerMessage() : "No online lobbies were available for group '" + usedGroup + "'.";
             }
             return new RouteDecision(
                     normalizedSource,
@@ -252,7 +282,7 @@ public final class RoutePlanner {
                 selected.map(ServerCandidate::name).orElse(null),
                 fallbackToDefault,
                 finalReason,
-                effectiveMode,
+                selectMode,
                 selectableCandidates
         );
     }

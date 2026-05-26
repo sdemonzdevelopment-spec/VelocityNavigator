@@ -35,7 +35,7 @@ See [Database Setup](GeoIP-Database-Setup) for full details.
 
 **Only if** you have lobby servers in multiple geographic regions (e.g., one in the US and one in Europe). If all your servers are in one location, geo-routing provides no benefit.
 
-Geo-routing is also **experimental** in v4.0.0 — it works but may not be production-stable for all setups.
+Geo-routing is also **experimental** in v4.1.0 — it works but may not be production-stable for all setups.
 
 See [Database Setup](GeoIP-Database-Setup) for setup instructions.
 
@@ -114,7 +114,7 @@ Use `consistent_hash` mode — it hashes the player's UUID to deterministically 
 selection_mode = "consistent_hash"
 ```
 
-Or combine with **player affinity** for even stronger stickiness. In v4.0.0, player affinity is fully configurable and enabled by default with a `0.7` stickiness factor — meaning there's a 70% chance players return to their previous lobby. This works alongside any selection mode and can be tuned or disabled in your config:
+Or combine with **player affinity** for even stronger stickiness. In v4.1.0, player affinity is fully configurable and enabled by default with a `0.7` stickiness factor — meaning there's a 70% chance players return to their previous lobby. This works alongside any selection mode and can be tuned or disabled in your config:
 
 ```toml
 [routing]
@@ -159,14 +159,17 @@ default_lobbies = [
 
 ---
 
-### What happened to the auto-update checker?
+### How does the update checker work in v4.1?
 
-In v4, the recurring auto-update checker was replaced with:
-1. A **one-time startup check** — runs 5 seconds after the proxy starts
-2. A **manual check command**: `/vn updatecheck`
-3. An **admin join notification** — when a player with `velocitynavigator.admin` permission joins, if an update is available, they receive a chat message
+In v4.1.0, the update checker features a **periodic scheduled task** with exponential backoff:
 
-The old `update_checker.enabled`, `notifyConsole`, and `startupDelaySeconds` fields have been removed. To suppress the startup notification, set `notify_on_startup = false`. To suppress the admin join notification, set `notify_admins_on_join = false`.
+1. A **startup check** — runs 5 seconds after the proxy starts
+2. A **recurring scheduled check** — repeats at the configured `check_interval` (minimum 30 minutes)
+3. A **manual check command**: `/vn updatecheck`
+4. An **admin join notification** — when a player with `velocitynavigator.admin` permission joins, if an update is available, they receive a chat message
+5. **HTTP 429 backoff** — if Modrinth returns rate-limit errors, the checker backs off exponentially up to 4 hours
+
+To suppress the startup notification, set `notify_on_startup = false`. To suppress the admin join notification, set `notify_admins_on_join = false`.
 
 ---
 
@@ -175,6 +178,7 @@ The old `update_checker.enabled`, `notifyConsole`, and `startupDelaySeconds` fie
 | v3 | v4 | Status |
 |----|----|--------|
 | `velocitynavigator.bypasscooldown` | `velocitynavigator.bypass.cooldown` | **Both work.** The v3 name is checked as a fallback. |
+| `velocitynavigator.use` | `"none"` (default) | **Changed in v4.1.0.** Default set to `"none"` — works out of the box without permission plugins. Custom values are preserved on migration. |
 
 Update your permission plugin when convenient, but nothing will break.
 

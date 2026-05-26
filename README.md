@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-4.0.0-cyan?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.1.0-cyan?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/platform-Velocity_3.x-blue?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/java-17+-orange?style=for-the-badge" alt="Java">
   <img src="https://img.shields.io/badge/license-Apache_2.0-green?style=for-the-badge" alt="License">
@@ -19,7 +19,22 @@
 
 ---
 
-## 🆕 What's New in v4
+## 🆕 What's New in v4.1
+
+| Feature | Description |
+|---------|-------------|
+| 🧱 **Bedrock/Geyser Support** | Seamless routing for Bedrock players with Floodgate UUID mapping and format stripping |
+| 🖥️ **`/vn servers` Dashboard** | Paginated diagnostics dashboard with circuit breaker, drain, and player capacity per lobby |
+| 🎨 **Configurable Dashboard Colors** | Custom MiniMessage/RGB status colors for healthy, draining, open, and offline states |
+| 🔍 **Legacy Color Code Converter** | Auto-detects and converts `&`/`§` codes to MiniMessage with `auto`, `legacy`, or `minimessage` modes |
+| ✅ **Levenshtein Config Validation** | Typo auto-correction with distance-based suggestions for all enum-styled TOML keys |
+| 📖 **Self-Documenting Config** | Every TOML key gets rich comments + wiki anchor URLs on write/migration |
+| 👋 **First-Run Welcome & Upgrades Digest** | Console welcome dashboard on fresh install, release notes digest on upgrades |
+| 🔄 **Periodic Update Checker** | Scheduled update checks with exponential 429 backoff (scales up to 4 hours) |
+| 🚫 **Empty Lobby Fallbacks** | Configurable `disconnect` or `fallback_server` strategy when all lobbies are unreachable |
+| 🔓 **Permission Default Changed** | `/lobby` command now defaults to `"none"` for immediate out-of-the-box adoption |
+
+### v4.0 Features Included
 
 | Feature | Description |
 |---------|-------------|
@@ -35,7 +50,7 @@
 | 🌍 **Geo-Based Routing** | Experimental geo-routing with MaxMind GeoLite2 support |
 | 🔔 **Admin Update Notifications** | Automatic in-game notification for admins when updates are available |
 
-→ See [Migration Guide v3 → v4](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Migration-Guide-v3-to-v4) for upgrade instructions.
+→ See [Migration Guide](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Migration-Guide-v3-to-v4) for upgrade instructions.
 
 ---
 
@@ -60,7 +75,7 @@
 
 ## 📦 Installation
 
-1. Download `VelocityNavigator-4.0.0.jar` from [Releases](../../releases)
+1. Download `VelocityNavigator-4.1.0.jar` from [Releases](../../releases)
 2. Place it in your Velocity proxy's `plugins/` folder
 3. Start (or restart) the proxy
 4. Edit `plugins/velocitynavigator/navigator.toml` to configure
@@ -111,6 +126,7 @@ See the [Configuration Guide](https://github.com/sdemonzdevelopment-spec/Velocit
 | `/vn drain <server>` | `velocitynavigator.admin` | Drain a server (no new players) |
 | `/vn undrain <server>` | `velocitynavigator.admin` | Remove drain flag |
 | `/vn drain status` | `velocitynavigator.admin` | List drained servers |
+| `/vn servers` | `velocitynavigator.admin` | Show paginated lobby server status dashboard |
 | `/vn updatecheck` | `velocitynavigator.admin` | Manually check for updates |
 
 ---
@@ -119,7 +135,7 @@ See the [Configuration Guide](https://github.com/sdemonzdevelopment-spec/Velocit
 
 | Permission | Default | Description |
 |-----------|---------|-------------|
-| `velocitynavigator.use` | `true` | Use the lobby command |
+| `velocitynavigator.use` | `none*` | Use the lobby command — default changed to `"none"` in v4.1.0 |
 | `velocitynavigator.admin` | `false` | Use all `/vn` admin commands |
 | `velocitynavigator.bypass.cooldown` | `false` | Bypass command cooldown |
 | `velocitynavigator.bypasscooldown` | `false` | Legacy — still works, use `bypass.cooldown` instead |
@@ -175,7 +191,7 @@ See the [Developer API Guide](https://github.com/sdemonzdevelopment-spec/Velocit
 git clone https://github.com/sdemonzdevelopment-spec/VelocityNavigator.git
 cd VelocityNavigator
 mvn clean verify
-# JAR output: target/VelocityNavigator-4.0.0.jar
+# JAR output: target/VelocityNavigator-4.1.0.jar
 ```
 
 ---

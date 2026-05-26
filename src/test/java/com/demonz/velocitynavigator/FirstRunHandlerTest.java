@@ -1,0 +1,121 @@
+package com.demonz.velocitynavigator;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class FirstRunHandlerTest {
+
+    @TempDir
+    Path tempDir;
+
+    private Logger createMockLogger(List<String> infoLogs, List<String> warnLogs) {
+        return (Logger) java.lang.reflect.Proxy.newProxyInstance(
+                Logger.class.getClassLoader(),
+                new Class<?>[]{Logger.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("info")) {
+                        if (args.length == 1) {
+                            infoLogs.add((String) args[0]);
+                        } else if (args.length > 1) {
+                            String format = ((String) args[0]).replace("{}", "%s");
+                            Object[] formatArgs = java.util.Arrays.copyOfRange(args, 1, args.length);
+                            infoLogs.add(String.format(format, formatArgs));
+                        }
+                    } else if (method.getName().equals("warn")) {
+                        if (args.length == 1) {
+                            warnLogs.add((String) args[0]);
+                        } else if (args.length > 1) {
+                            String format = ((String) args[0]).replace("{}", "%s");
+                            Object[] formatArgs = java.util.Arrays.copyOfRange(args, 1, args.length);
+                            warnLogs.add(String.format(format, formatArgs));
+                        }
+                    }
+                    return null;
+                }
+        );
+    }
+
+    @Test
+    void showsWelcomeMessageAndCreatesFileOnFreshInstall() throws Exception {
+        List<String> infoLogs = new ArrayList<>();
+        List<String> warnLogs = new ArrayList<>();
+        Logger logger = createMockLogger(infoLogs, warnLogs);
+
+        FirstRunHandler.checkAndShowWelcome(logger, tempDir, "4.1.0", true, "https://wiki.example.com");
+
+        // Verify version file was created
+        Path versionFile = tempDir.resolve("last_known_version.dat");
+        assertTrue(Files.exists(versionFile));
+        assertEquals("4.1.0", Files.readString(versionFile, StandardCharsets.UTF_8).trim());
+
+        // Verify welcome message was logged
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Getting Started")));
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("https://wiki.example.com")));
+    }
+
+    @Test
+    void isSilentOnSameVersion() throws Exception {
+        // Create version file beforehand
+        Path versionFile = tempDir.resolve("last_known_version.dat");
+        Files.writeString(versionFile, "4.1.0", StandardCharsets.UTF_8);
+
+        List<String> infoLogs = new ArrayList<>();
+        List<String> warnLogs = new ArrayList<>();
+        Logger logger = createMockLogger(infoLogs, warnLogs);
+
+        FirstRunHandler.checkAndShowWelcome(logger, tempDir, "4.1.0", true, "https://wiki.example.com");
+
+        // Verify no logs were printed
+        assertTrue(infoLogs.isEmpty());
+        assertTrue(warnLogs.isEmpty());
+    }
+
+    @Test
+    void showsUpgradeDigestOnUpgrade() throws Exception {
+        // Create older version file beforehand
+        Path versionFile = tempDir.resolve("last_known_version.dat");
+        Files.writeString(versionFile, "4.0.0", StandardCharsets.UTF_8);
+
+        List<String> infoLogs = new ArrayList<>();
+        List<String> warnLogs = new ArrayList<>();
+        Logger logger = createMockLogger(infoLogs, warnLogs);
+
+        FirstRunHandler.checkAndShowWelcome(logger, tempDir, "4.1.0", true, "https://wiki.example.com");
+
+        // Verify version file was updated
+        assertEquals("4.1.0", Files.readString(versionFile, StandardCharsets.UTF_8).trim());
+
+        // Verify upgrade digest was logged
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Upgraded Successfully")));
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Bedrock & Geyser Support")));
+    }
+
+    @Test
+    void recoversFromCorruptFile() throws Exception {
+        // Create corrupted version file beforehand
+        Path versionFile = tempDir.resolve("last_known_version.dat");
+        Files.writeString(versionFile, "", StandardCharsets.UTF_8);
+
+        List<String> infoLogs = new ArrayList<>();
+        List<String> warnLogs = new ArrayList<>();
+        Logger logger = createMockLogger(infoLogs, warnLogs);
+
+        FirstRunHandler.checkAndShowWelcome(logger, tempDir, "4.1.0", true, "https://wiki.example.com");
+
+        // Verify version file was re-written
+        assertEquals("4.1.0", Files.readString(versionFile, StandardCharsets.UTF_8).trim());
+
+        // Since reading empty throws or differs, it shows welcome/upgrade
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Getting Started") || log.contains("Upgraded Successfully")));
+    }
+}

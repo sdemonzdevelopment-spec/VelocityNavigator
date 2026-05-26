@@ -9,7 +9,7 @@ import java.util.Map;
 
 public final class Config {
 
-    public static final int CURRENT_VERSION = 4;
+    public static final int CURRENT_VERSION = 5;
 
     private final int configVersion;
     private final Commands commands;
@@ -24,6 +24,9 @@ public final class Config {
     private final GeoRoutingSettings geoRouting;
     private final boolean notifyOnStartup;
     private final boolean notifyAdminsOnJoin;
+    private final StartupSettings startup;
+    private final LobbyFallbackSettings lobbyFallback;
+    private final BedrockSettings bedrock;
 
     public Config(
             int configVersion,
@@ -40,6 +43,44 @@ public final class Config {
             boolean notifyOnStartup,
             boolean notifyAdminsOnJoin
     ) {
+        this(
+                configVersion,
+                commands,
+                routing,
+                healthChecks,
+                messages,
+                updateChecker,
+                metrics,
+                debug,
+                circuitBreaker,
+                degradation,
+                geoRouting,
+                notifyOnStartup,
+                notifyAdminsOnJoin,
+                new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"),
+                new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", ""),
+                new BedrockSettings(false, true, true, true)
+        );
+    }
+
+    public Config(
+            int configVersion,
+            Commands commands,
+            Routing routing,
+            HealthChecks healthChecks,
+            Messages messages,
+            UpdateCheckerSettings updateChecker,
+            MetricsSettings metrics,
+            DebugSettings debug,
+            CircuitBreakerSettings circuitBreaker,
+            DegradationSettings degradation,
+            GeoRoutingSettings geoRouting,
+            boolean notifyOnStartup,
+            boolean notifyAdminsOnJoin,
+            StartupSettings startup,
+            LobbyFallbackSettings lobbyFallback,
+            BedrockSettings bedrock
+    ) {
         this.configVersion = configVersion;
         this.commands = commands;
         this.routing = routing;
@@ -53,6 +94,9 @@ public final class Config {
         this.geoRouting = geoRouting;
         this.notifyOnStartup = notifyOnStartup;
         this.notifyAdminsOnJoin = notifyAdminsOnJoin;
+        this.startup = startup == null ? new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki") : startup;
+        this.lobbyFallback = lobbyFallback == null ? new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", "") : lobbyFallback;
+        this.bedrock = bedrock == null ? new BedrockSettings(false, true, true, true) : bedrock;
     }
 
     public static Config defaults() {
@@ -61,7 +105,7 @@ public final class Config {
                 new Commands(
                         "lobby",
                         List.of("hub", "spawn"),
-                        "velocitynavigator.use",
+                        "none",
                         List.of("velocitynavigator", "vn"),
                         3,
                         false
@@ -95,16 +139,24 @@ public final class Config {
                         "<yellow>Please wait <time> more second(s).</yellow>",
                         "<green>VelocityNavigator reloaded.</green>",
                         "<red>Reload failed. Check console for details.</red>",
-                        "<yellow>Retrying connection... (<attempt>/<max>)</yellow>"
+                        "<yellow>Retrying connection... (<attempt>/<max>)</yellow>",
+                        "auto",
+                        "<green>",
+                        "<yellow>",
+                        "<red>",
+                        "<gray>"
                 ),
-                new UpdateCheckerSettings(UpdateChannel.RELEASE),
+                new UpdateCheckerSettings(true, UpdateChannel.RELEASE, 60, true),
                 new MetricsSettings(true),
                 new DebugSettings(false),
                 new CircuitBreakerSettings(true, 3, 30, 1),
                 new DegradationSettings(true, "random"),
                 new GeoRoutingSettings(false, ""),
                 true,
-                true
+                true,
+                new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"),
+                new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", ""),
+                new BedrockSettings(false, true, true, true)
         );
     }
 
@@ -158,6 +210,18 @@ public final class Config {
 
     public boolean notifyAdminsOnJoin() {
         return notifyAdminsOnJoin;
+    }
+
+    public StartupSettings startup() {
+        return startup;
+    }
+
+    public LobbyFallbackSettings lobbyFallback() {
+        return lobbyFallback;
+    }
+
+    public BedrockSettings bedrock() {
+        return bedrock;
     }
 
     public enum SelectionMode {
@@ -275,7 +339,7 @@ public final class Config {
         public Commands {
             primary = sanitizeCommand(primary, "lobby");
             aliases = immutableNames(aliases, primary);
-            permission = sanitizeText(permission, "velocitynavigator.use");
+            permission = sanitizeText(permission, "none");
             adminAliases = immutableNames(adminAliases, null);
             if (adminAliases.isEmpty()) {
                 adminAliases = List.of("velocitynavigator", "vn");
@@ -331,7 +395,12 @@ public final class Config {
             String cooldown,
             String reloadSuccess,
             String reloadFailed,
-            String retrying
+            String retrying,
+            String formatting,
+            String dashboardHealthy,
+            String dashboardDraining,
+            String dashboardOpen,
+            String dashboardOffline
     ) {
         public Messages {
             connecting = sanitizeText(connecting, "<aqua>Sending you to <server>...</aqua>");
@@ -342,14 +411,54 @@ public final class Config {
             reloadSuccess = sanitizeText(reloadSuccess, "<green>VelocityNavigator reloaded.</green>");
             reloadFailed = sanitizeText(reloadFailed, "<red>Reload failed. Check console for details.</red>");
             retrying = sanitizeText(retrying, "<yellow>Retrying connection... (<attempt>/<max>)</yellow>");
+            formatting = sanitizeText(formatting, "auto");
+            dashboardHealthy = sanitizeText(dashboardHealthy, "<green>");
+            dashboardDraining = sanitizeText(dashboardDraining, "<yellow>");
+            dashboardOpen = sanitizeText(dashboardOpen, "<red>");
+            dashboardOffline = sanitizeText(dashboardOffline, "<gray>");
+        }
+
+        public Messages(
+                String connecting,
+                String alreadyConnected,
+                String noLobbyFound,
+                String playerOnly,
+                String cooldown,
+                String reloadSuccess,
+                String reloadFailed,
+                String retrying,
+                String formatting
+        ) {
+            this(connecting, alreadyConnected, noLobbyFound, playerOnly, cooldown, reloadSuccess, reloadFailed, retrying, formatting, "<green>", "<yellow>", "<red>", "<gray>");
+        }
+
+        public Messages(
+                String connecting,
+                String alreadyConnected,
+                String noLobbyFound,
+                String playerOnly,
+                String cooldown,
+                String reloadSuccess,
+                String reloadFailed,
+                String retrying
+        ) {
+            this(connecting, alreadyConnected, noLobbyFound, playerOnly, cooldown, reloadSuccess, reloadFailed, retrying, "auto", "<green>", "<yellow>", "<red>", "<gray>");
         }
     }
 
     public record UpdateCheckerSettings(
-            UpdateChannel channel
+            boolean enabled,
+            UpdateChannel channel,
+            int checkIntervalMinutes,
+            boolean notifyAdmins
     ) {
         public UpdateCheckerSettings {
             channel = channel == null ? UpdateChannel.RELEASE : channel;
+            checkIntervalMinutes = Math.max(30, checkIntervalMinutes);
+        }
+
+        public UpdateCheckerSettings(UpdateChannel channel) {
+            this(true, channel, 60, true);
         }
     }
 
@@ -382,6 +491,25 @@ public final class Config {
     public record AffinitySettings(boolean enabled, double stickiness) {
         public AffinitySettings {
             stickiness = Math.max(0.0, Math.min(1.0, stickiness));
+        }
+    }
+
+    public record StartupSettings(boolean welcomeEnabled, String wikiUrl) {
+        public StartupSettings {
+            wikiUrl = sanitizeText(wikiUrl, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki");
+        }
+    }
+
+    public record LobbyFallbackSettings(String noServerStrategy, String noServerMessage, String fallbackServer) {
+        public LobbyFallbackSettings {
+            noServerStrategy = sanitizeText(noServerStrategy, "disconnect");
+            noServerMessage = sanitizeText(noServerMessage, "<red>No lobby servers are currently available. Please try again later.</red>");
+            fallbackServer = fallbackServer == null ? "" : fallbackServer.trim();
+        }
+    }
+
+    public record BedrockSettings(boolean enabled, boolean autoDetect, boolean stripAdvancedFormatting, boolean affinityUseJavaUuid) {
+        public BedrockSettings {
         }
     }
 

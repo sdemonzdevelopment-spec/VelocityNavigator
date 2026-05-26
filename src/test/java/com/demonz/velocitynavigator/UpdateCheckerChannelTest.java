@@ -20,7 +20,7 @@ class UpdateCheckerChannelTest {
     void setUp() {
         checker = new UpdateChecker(
                 LoggerFactory.getLogger("update-checker-test"),
-                "4.0.0"
+                "4.1.0"
         );
     }
 

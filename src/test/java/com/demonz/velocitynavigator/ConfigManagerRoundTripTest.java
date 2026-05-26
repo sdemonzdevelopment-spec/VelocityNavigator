@@ -43,6 +43,9 @@ class ConfigManagerRoundTripTest {
         assertEquals(defaults.healthChecks().timeoutMs(), config.healthChecks().timeoutMs());
         assertEquals(defaults.healthChecks().cacheSeconds(), config.healthChecks().cacheSeconds());
         assertEquals(defaults.updateChecker().channel(), config.updateChecker().channel());
+        assertEquals(defaults.updateChecker().enabled(), config.updateChecker().enabled());
+        assertEquals(defaults.updateChecker().checkIntervalMinutes(), config.updateChecker().checkIntervalMinutes());
+        assertEquals(defaults.updateChecker().notifyAdmins(), config.updateChecker().notifyAdmins());
         assertEquals(defaults.circuitBreaker().enabled(), config.circuitBreaker().enabled());
         assertEquals(defaults.circuitBreaker().failureThreshold(), config.circuitBreaker().failureThreshold());
         assertEquals(defaults.circuitBreaker().cooldownSeconds(), config.circuitBreaker().cooldownSeconds());
@@ -51,6 +54,15 @@ class ConfigManagerRoundTripTest {
         assertEquals(defaults.degradation().mode(), config.degradation().mode());
         assertEquals(defaults.notifyOnStartup(), config.notifyOnStartup());
         assertEquals(defaults.notifyAdminsOnJoin(), config.notifyAdminsOnJoin());
+        assertEquals(defaults.startup().welcomeEnabled(), config.startup().welcomeEnabled());
+        assertEquals(defaults.startup().wikiUrl(), config.startup().wikiUrl());
+        assertEquals(defaults.lobbyFallback().noServerStrategy(), config.lobbyFallback().noServerStrategy());
+        assertEquals(defaults.lobbyFallback().noServerMessage(), config.lobbyFallback().noServerMessage());
+        assertEquals(defaults.lobbyFallback().fallbackServer(), config.lobbyFallback().fallbackServer());
+        assertEquals(defaults.bedrock().enabled(), config.bedrock().enabled());
+        assertEquals(defaults.bedrock().autoDetect(), config.bedrock().autoDetect());
+        assertEquals(defaults.bedrock().stripAdvancedFormatting(), config.bedrock().stripAdvancedFormatting());
+        assertEquals(defaults.bedrock().affinityUseJavaUuid(), config.bedrock().affinityUseJavaUuid());
     }
 
     @Test

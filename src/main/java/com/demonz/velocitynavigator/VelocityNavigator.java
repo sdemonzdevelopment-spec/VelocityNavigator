@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "4.0.0",
+        version = "4.1.0",
         description = "Premium lobby navigation and diagnostics for Velocity proxies.",
         authors = {"DemonZDevelopment"}
 )
@@ -66,6 +66,7 @@ public final class VelocityNavigator implements NavigatorAPI {
     private PlayerAffinityService affinityService;
     private ConnectionRateTracker rateTracker;
     private GeoRoutingService geoRoutingService;
+    private BedrockHandler bedrockHandler;
 
     private volatile Config config;
     private volatile Config previousConfig;
@@ -79,7 +80,7 @@ public final class VelocityNavigator implements NavigatorAPI {
         this.server = Objects.requireNonNull(server, "server");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
-        this.metricsFactory = Objects.requireNonNull(metricsFactory, "metricsFactory");
+        this.metricsFactory = metricsFactory;
         Plugin annotation = getClass().getAnnotation(Plugin.class);
         this.pluginVersion = annotation == null ? "unknown" : annotation.version();
     }
@@ -97,29 +98,21 @@ public final class VelocityNavigator implements NavigatorAPI {
             ConfigLoadResult loadResult = configManager.load();
             applyLoadedConfiguration(loadResult);
 
-            // Wire services into route planner
-            routePlanner.setDrainService(drainService);
-            if (circuitBreaker != null) {
-                routePlanner.setCircuitBreaker(circuitBreaker);
-                healthService.setCircuitBreaker(circuitBreaker);
-            }
-            if (loadTracker != null) {
-                routePlanner.setLoadTracker(loadTracker);
-                // FIX-1: Wire load tracker into health service so EMA is updated on pings
-                healthService.setLoadTracker(loadTracker);
-            }
-            if (hashRing != null) {
-                routePlanner.setHashRing(hashRing);
-            }
-            if (affinityService != null) {
-                routePlanner.setAffinityService(affinityService);
-            }
-            if (rateTracker != null) {
-                routePlanner.setRateTracker(rateTracker);
+            this.bedrockHandler = new BedrockHandler(server);
+            if (this.bedrockHandler.isBedrockSupported(config)) {
+                logger.info("[VelocityNavigator] Bedrock/Geyser support: enabled (auto-detected)");
+            } else {
+                logger.info("[VelocityNavigator] Bedrock/Geyser support: disabled");
             }
 
-            this.metricsService = new MetricsService(metricsFactory, this::config, logger);
-            this.metricsService.configure(this, config);
+            if (config != null && config.startup() != null) {
+                FirstRunHandler.checkAndShowWelcome(logger, dataDirectory, pluginVersion, config.startup().welcomeEnabled(), config.startup().wikiUrl());
+            }
+
+            if (metricsFactory != null) {
+                this.metricsService = new MetricsService(metricsFactory, this::config, logger);
+                this.metricsService.configure(this, config);
+            }
 
             // AC-01: Schedule background cache warming task
             scheduleCacheWarming();
@@ -129,9 +122,6 @@ public final class VelocityNavigator implements NavigatorAPI {
 
             // Schedule stats reset every 60 seconds
             scheduleStatsReset();
-
-            // AC-04: Startup notification - one-time update check
-            scheduleStartupUpdateCheck();
 
             NavigatorAPIProvider.set(this);
 
@@ -171,7 +161,13 @@ public final class VelocityNavigator implements NavigatorAPI {
     @Subscribe
     public void onPlayerDisconnect(DisconnectEvent event) {
         if (affinityService != null) {
-            affinityService.removeAffinity(event.getPlayer().getUniqueId());
+            UUID affinityUuid = event.getPlayer().getUniqueId();
+            if (bedrockHandler != null && bedrockHandler.isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
+                if (bedrockHandler.isBedrockPlayer(event.getPlayer(), config)) {
+                    affinityUuid = FloodgateIntegration.getJavaUUID(event.getPlayer());
+                }
+            }
+            affinityService.removeAffinity(affinityUuid);
         }
     }
 
@@ -184,7 +180,13 @@ public final class VelocityNavigator implements NavigatorAPI {
         // AC-01: Use cached health data instead of blocking .join()
         Map<String, Integer> cachedServers = healthService.getCachedOnlineServers();
         if (!cachedServers.isEmpty()) {
-            RouteDecision decision = routePlanner.plan("", config, cachedServers, event.getPlayer().getUniqueId());
+            UUID affinityUuid = event.getPlayer().getUniqueId();
+            if (bedrockHandler != null && bedrockHandler.isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
+                if (bedrockHandler.isBedrockPlayer(event.getPlayer(), config)) {
+                    affinityUuid = FloodgateIntegration.getJavaUUID(event.getPlayer());
+                }
+            }
+            RouteDecision decision = routePlanner.plan("", config, cachedServers, affinityUuid);
             if (decision.hasSelection()) {
                 server.getServer(decision.selectedServer()).ifPresent(target -> {
                     event.setInitialServer(target);
@@ -200,7 +202,7 @@ public final class VelocityNavigator implements NavigatorAPI {
 
     @Subscribe
     public void onPostLogin(PostLoginEvent event) {
-        if (config == null || !config.notifyAdminsOnJoin()) {
+        if (config == null || updateChecker == null || !config.notifyAdminsOnJoin()) {
             return;
         }
         if (!event.getPlayer().hasPermission("velocitynavigator.admin")) {
@@ -277,6 +279,10 @@ public final class VelocityNavigator implements NavigatorAPI {
         return updateChecker;
     }
 
+    public BedrockHandler bedrockHandler() {
+        return bedrockHandler;
+    }
+
     public RoutingStats routingStats() {
         return routingStats;
     }
@@ -303,6 +309,10 @@ public final class VelocityNavigator implements NavigatorAPI {
 
     public GeoRoutingService geoRoutingService() {
         return geoRoutingService;
+    }
+
+    public ServerHealthService healthService() {
+        return healthService;
     }
 
     public CompletableFuture<RouteDecision> previewRoute(Player player) {
@@ -359,6 +369,7 @@ public final class VelocityNavigator implements NavigatorAPI {
                 <gray>/velocitynavigator drain &lt;server&gt;</gray> <white>Drain a server (stop routing to it)</white>
                 <gray>/velocitynavigator undrain &lt;server&gt;</gray> <white>Undrain a server (resume routing)</white>
                 <gray>/velocitynavigator drain status</gray> <white>Show drained servers</white>
+                <gray>/velocitynavigator servers</gray> <white>Show all lobby server statuses</white>
                 """);
     }
 
@@ -520,20 +531,26 @@ public final class VelocityNavigator implements NavigatorAPI {
         // Initialize/update circuit breaker
         Config.CircuitBreakerSettings cbSettings = config.circuitBreaker();
         if (cbSettings.enabled()) {
-            this.circuitBreaker = new CircuitBreaker(
-                    cbSettings.failureThreshold(),
-                    cbSettings.cooldownSeconds(),
-                    cbSettings.halfOpenMaxTests()
-            );
+            if (previousConfig == null || !previousConfig.circuitBreaker().equals(cbSettings) || this.circuitBreaker == null) {
+                this.circuitBreaker = new CircuitBreaker(
+                        cbSettings.failureThreshold(),
+                        cbSettings.cooldownSeconds(),
+                        cbSettings.halfOpenMaxTests()
+                );
+            }
         } else {
             this.circuitBreaker = null;
         }
 
         // Initialize load tracker
-        this.loadTracker = new ServerLoadTracker(0.3);
+        if (this.loadTracker == null) {
+            this.loadTracker = new ServerLoadTracker(0.3);
+        }
 
         // Initialize hash ring
-        this.hashRing = new ConsistentHashRing();
+        if (this.hashRing == null) {
+            this.hashRing = new ConsistentHashRing();
+        }
 
         // Initialize affinity service
         if (config.routing().affinity().enabled()) {
@@ -550,7 +567,9 @@ public final class VelocityNavigator implements NavigatorAPI {
         }
 
         // Initialize rate tracker
-        this.rateTracker = new ConnectionRateTracker(60);
+        if (this.rateTracker == null) {
+            this.rateTracker = new ConnectionRateTracker(60);
+        }
 
         // Initialize geo routing service (stub)
         this.geoRoutingService = new GeoRoutingService(
@@ -558,7 +577,7 @@ public final class VelocityNavigator implements NavigatorAPI {
                 config.geoRouting().databasePath()
         );
 
-        // Wire services into route planner
+        // Wire services into route planner and health service
         if (routePlanner != null) {
             routePlanner.setDrainService(drainService);
             routePlanner.setCircuitBreaker(circuitBreaker);
@@ -567,8 +586,13 @@ public final class VelocityNavigator implements NavigatorAPI {
             routePlanner.setAffinityService(affinityService);
             routePlanner.setRateTracker(rateTracker);
         }
+        if (healthService != null) {
+            healthService.setCircuitBreaker(circuitBreaker);
+            healthService.setLoadTracker(loadTracker);
+        }
 
         registerCommands();
+        schedulePeriodicUpdateCheck();
     }
 
     private boolean lobbyTopologyUnchanged(Config previous, Config current) {
@@ -624,6 +648,10 @@ public final class VelocityNavigator implements NavigatorAPI {
         registeredCommands.addAll(config.commands().aliases());
 
         List<String> adminNames = new ArrayList<>(config.commands().adminAliases());
+        if (adminNames.isEmpty()) {
+            adminNames.add("velocitynavigator");
+            adminNames.add("vn");
+        }
         String adminPrimary = adminNames.get(0);
         String[] adminAliases = adminNames.subList(1, adminNames.size()).toArray(String[]::new);
         NavigatorAdminCommand adminCommand = new NavigatorAdminCommand(this);
@@ -649,6 +677,10 @@ public final class VelocityNavigator implements NavigatorAPI {
     private void scheduleCacheWarming() {
         if (cacheWarmTask != null) {
             cacheWarmTask.cancel();
+            cacheWarmTask = null;
+        }
+        if (config.healthChecks().cacheSeconds() <= 0) {
+            return; // Caching is disabled, no warming needed
         }
         int intervalSeconds = Math.max(5, config.healthChecks().cacheSeconds());
         cacheWarmTask = server.getScheduler()
@@ -700,29 +732,25 @@ public final class VelocityNavigator implements NavigatorAPI {
     }
 
     /**
-     * AC-04: Startup-only update check — one-time task after 5 seconds.
+     * Periodic update checker task that respects configured interval and enabled status.
      */
-    private void scheduleStartupUpdateCheck() {
-        if (!config.notifyOnStartup()) {
+    private void schedulePeriodicUpdateCheck() {
+        if (config == null || config.updateChecker() == null) {
             return;
         }
-        // FIX-11: Store the task handle so it can be cancelled on shutdown
+        if (startupUpdateTask != null) {
+            startupUpdateTask.cancel();
+        }
+        if (!config.updateChecker().enabled()) {
+            return;
+        }
+        int intervalMinutes = Math.max(30, config.updateChecker().checkIntervalMinutes());
         this.startupUpdateTask = server.getScheduler()
                 .buildTask(this, () -> {
-                    updateChecker.checkAsync(config.updateChecker())
-                            .thenRun(() -> {
-                                if (updateChecker.status().updateAvailable()) {
-                                    logger.info("VelocityNavigator update available: {} -> {}",
-                                            pluginVersion, updateChecker.status().latestKnownVersion());
-                                    logger.info("Download: https://modrinth.com/plugin/velocitynavigator");
-                                }
-                            })
-                            .exceptionally(throwable -> {
-                                logger.debug("VelocityNavigator startup update check failed: {}", throwable.getMessage());
-                                return null;
-                            });
+                    updateChecker.checkAsync(config.updateChecker());
                 })
                 .delay(5, TimeUnit.SECONDS)
+                .repeat(intervalMinutes, TimeUnit.MINUTES)
                 .schedule();
     }
 }

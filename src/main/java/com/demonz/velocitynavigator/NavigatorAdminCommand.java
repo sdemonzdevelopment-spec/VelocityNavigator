@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public final class NavigatorAdminCommand implements SimpleCommand {
 
-    private static final List<String> ROOT_SUBCOMMANDS = List.of("reload", "status", "version", "updatecheck", "debug", "drain", "undrain", "help");
+    private static final List<String> ROOT_SUBCOMMANDS = List.of("reload", "status", "version", "updatecheck", "debug", "drain", "undrain", "servers", "help");
     private static final List<String> DEBUG_TYPES = List.of("player", "server");
     private static final List<String> DRAIN_SUBCOMMANDS = List.of("status");
 
@@ -46,6 +46,7 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             case "debug" -> debug(invocation.source(), arguments);
             case "drain" -> drain(invocation.source(), arguments);
             case "undrain" -> undrain(invocation.source(), arguments);
+            case "servers" -> ServersSubCommand.execute(invocation.source(), arguments, plugin);
             case "help" -> invocation.source().sendMessage(plugin.buildHelpComponent());
             default -> invocation.source().sendMessage(Component.text("Unknown subcommand. Use /velocitynavigator help.", NamedTextColor.YELLOW));
         }
@@ -156,12 +157,20 @@ public final class NavigatorAdminCommand implements SimpleCommand {
                 source.sendMessage(Component.text("Player not found: " + targetName, NamedTextColor.RED));
                 return;
             }
-            plugin.previewRoute(player).thenAccept(decision -> source.sendMessage(plugin.buildPlayerDebugComponent(decision)));
+            plugin.previewRoute(player).thenAccept(decision -> source.sendMessage(plugin.buildPlayerDebugComponent(decision)))
+                    .exceptionally(throwable -> {
+                        source.sendMessage(Component.text("Debug route preview failed: " + throwable.getMessage(), NamedTextColor.RED));
+                        return null;
+                    });
             return;
         }
 
         if ("server".equals(targetType)) {
-            plugin.inspectServer(targetName).thenAccept(status -> source.sendMessage(plugin.buildServerDebugComponent(status)));
+            plugin.inspectServer(targetName).thenAccept(status -> source.sendMessage(plugin.buildServerDebugComponent(status)))
+                    .exceptionally(throwable -> {
+                        source.sendMessage(Component.text("Debug server inspection failed: " + throwable.getMessage(), NamedTextColor.RED));
+                        return null;
+                    });
             return;
         }
 

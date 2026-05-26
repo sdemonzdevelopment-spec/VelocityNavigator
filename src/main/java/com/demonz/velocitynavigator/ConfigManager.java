@@ -85,6 +85,9 @@ public final class ConfigManager {
             state.warnings.add(0, "Migrated navigator.toml from v" + sourceVersion + " to v" + Config.CURRENT_VERSION + ".");
         }
 
+        // Run validation on loaded config
+        state.warnings.addAll(ConfigValidator.validate(config, toml));
+
         return new ConfigLoadResult(
                 config,
                 List.copyOf(state.warnings),
@@ -150,7 +153,15 @@ public final class ConfigManager {
         );
 
         // Read default lobbies (support both plain strings and inline tables)
-        List<Config.LobbyEntry> defaultLobbies = readLobbyEntryList(toml, state, "routing.default_lobbies", "routing.default_lobbies", "settings.lobby_servers", "lobby_servers");
+        List<Config.LobbyEntry> defaultLobbies = readLobbyEntryList(
+                toml,
+                state,
+                "routing.default_lobbies",
+                defaults.routing().defaultLobbies(),
+                "routing.default_lobbies",
+                "settings.lobby_servers",
+                "lobby_servers"
+        );
 
         int maxRetries = readInt(toml, state, "routing.max_retries", defaults.routing().maxRetries(), "routing.max_retries");
 
@@ -183,23 +194,32 @@ public final class ConfigManager {
                 readString(toml, state, "messages.cooldown", defaults.messages().cooldown(), "messages.cooldown"),
                 readString(toml, state, "messages.reload_success", defaults.messages().reloadSuccess(), "messages.reload_success"),
                 readString(toml, state, "messages.reload_failed", defaults.messages().reloadFailed(), "messages.reload_failed"),
-                readString(toml, state, "messages.retrying", defaults.messages().retrying(), "messages.retrying")
+                readString(toml, state, "messages.retrying", defaults.messages().retrying(), "messages.retrying"),
+                readString(toml, state, "messages.formatting", defaults.messages().formatting(), "messages.formatting"),
+                readString(toml, state, "messages.dashboard_healthy", defaults.messages().dashboardHealthy(), "messages.dashboard_healthy"),
+                readString(toml, state, "messages.dashboard_draining", defaults.messages().dashboardDraining(), "messages.dashboard_draining"),
+                readString(toml, state, "messages.dashboard_open", defaults.messages().dashboardOpen(), "messages.dashboard_open"),
+                readString(toml, state, "messages.dashboard_offline", defaults.messages().dashboardOffline(), "messages.dashboard_offline")
         );
 
-        // AC-04: UpdateCheckerSettings now only has channel
-        // Migration: warn about old enabled=false
+        // Load UpdateCheckerSettings with v5 features
         Config.UpdateCheckerSettings updateChecker;
-        if (sourceVersion < 4) {
+        if (sourceVersion < 5) {
+            boolean enabled = true;
             Object oldEnabled = rawValue(toml, "update_checker.enabled");
             if (oldEnabled instanceof Boolean && !(Boolean) oldEnabled) {
-                state.warnings.add("update_checker.enabled has been removed in v4. Use /vn updatecheck to manually check. The check always runs on startup if notify_on_startup is true.");
+                enabled = false;
             }
-            updateChecker = new Config.UpdateCheckerSettings(
-                    Config.UpdateChannel.fromString(readString(toml, state, "update_checker.channel", defaults.updateChecker().channel().configValue(), "update_checker.channel"))
-            );
+            Config.UpdateChannel channel = Config.UpdateChannel.fromString(readString(toml, state, "update_checker.channel", defaults.updateChecker().channel().configValue(), "update_checker.channel"));
+            int checkInterval = readInt(toml, state, "update_checker.check_interval", defaults.updateChecker().checkIntervalMinutes(), "update_checker.check_interval");
+            boolean notifyAdmins = readBoolean(toml, state, "update_checker.notify_admins", defaults.updateChecker().notifyAdmins(), "update_checker.notify_admins");
+            updateChecker = new Config.UpdateCheckerSettings(enabled, channel, checkInterval, notifyAdmins);
         } else {
             updateChecker = new Config.UpdateCheckerSettings(
-                    Config.UpdateChannel.fromString(readString(toml, state, "update_checker.channel", defaults.updateChecker().channel().configValue(), "update_checker.channel"))
+                    readBoolean(toml, state, "update_checker.enabled", defaults.updateChecker().enabled(), "update_checker.enabled"),
+                    Config.UpdateChannel.fromString(readString(toml, state, "update_checker.channel", defaults.updateChecker().channel().configValue(), "update_checker.channel")),
+                    readInt(toml, state, "update_checker.check_interval", defaults.updateChecker().checkIntervalMinutes(), "update_checker.check_interval"),
+                    readBoolean(toml, state, "update_checker.notify_admins", defaults.updateChecker().notifyAdmins(), "update_checker.notify_admins")
             );
         }
 
@@ -229,8 +249,25 @@ public final class ConfigManager {
         );
 
         boolean notifyOnStartup = readBoolean(toml, state, "notify_on_startup", defaults.notifyOnStartup(), "notify_on_startup");
-
         boolean notifyAdminsOnJoin = readBoolean(toml, state, "notify_admins_on_join", defaults.notifyAdminsOnJoin(), "notify_admins_on_join");
+
+        Config.StartupSettings startup = new Config.StartupSettings(
+                readBoolean(toml, state, "startup.welcome_enabled", defaults.startup().welcomeEnabled(), "startup.welcome_enabled"),
+                readString(toml, state, "startup.wiki_url", defaults.startup().wikiUrl(), "startup.wiki_url")
+        );
+
+        Config.LobbyFallbackSettings lobbyFallback = new Config.LobbyFallbackSettings(
+                readString(toml, state, "lobby.no_server_strategy", defaults.lobbyFallback().noServerStrategy(), "lobby.no_server_strategy"),
+                readString(toml, state, "lobby.no_server_message", defaults.lobbyFallback().noServerMessage(), "lobby.no_server_message"),
+                readString(toml, state, "lobby.fallback_server", defaults.lobbyFallback().fallbackServer(), "lobby.fallback_server")
+        );
+
+        Config.BedrockSettings bedrock = new Config.BedrockSettings(
+                readBoolean(toml, state, "bedrock.enabled", defaults.bedrock().enabled(), "bedrock.enabled"),
+                readBoolean(toml, state, "bedrock.auto_detect", defaults.bedrock().autoDetect(), "bedrock.auto_detect"),
+                readBoolean(toml, state, "bedrock.strip_advanced_formatting", defaults.bedrock().stripAdvancedFormatting(), "bedrock.strip_advanced_formatting"),
+                readBoolean(toml, state, "bedrock.affinity_use_java_uuid", defaults.bedrock().affinityUseJavaUuid(), "bedrock.affinity_use_java_uuid")
+        );
 
         return new Config(
                 Config.CURRENT_VERSION,
@@ -245,11 +282,14 @@ public final class ConfigManager {
                 degradationSettings,
                 geoRoutingSettings,
                 notifyOnStartup,
-                notifyAdminsOnJoin
+                notifyAdminsOnJoin,
+                startup,
+                lobbyFallback,
+                bedrock
         );
     }
 
-    private List<Config.LobbyEntry> readLobbyEntryList(Toml toml, ParseState state, String label, String... paths) {
+    private List<Config.LobbyEntry> readLobbyEntryList(Toml toml, ParseState state, String label, List<Config.LobbyEntry> fallback, String... paths) {
         for (String path : paths) {
             Object value = rawValue(toml, path);
             if (value == null) {
@@ -271,9 +311,9 @@ public final class ConfigManager {
             }
             state.warnings.add(label + " expected a list. Using default value.");
             state.normalized = true;
-            return Config.defaults().routing().defaultLobbies();
+            return fallback;
         }
-        return Config.defaults().routing().defaultLobbies();
+        return fallback;
     }
 
     @SuppressWarnings("unchecked")
@@ -536,67 +576,95 @@ public final class ConfigManager {
     }
 
     private void writeConfig(Config config) throws IOException {
+        String wiki = config.startup() != null ? config.startup().wikiUrl() : "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki";
+        if (wiki.endsWith("/")) {
+            wiki = wiki.substring(0, wiki.length() - 1);
+        }
+
         StringBuilder builder = new StringBuilder();
-        builder.append("# VelocityNavigator v4 configuration").append('\n');
-        builder.append("# Full docs: https://github.com/DemonZDevelopment/VelocityNavigator/blob/main/docs/configuration-guide.md").append('\n');
+        builder.append("# VelocityNavigator configuration").append('\n');
+        builder.append("# Full docs and support can be found on our official wiki:").append('\n');
+        builder.append("# ").append(wiki).append('\n');
         builder.append("# Clean, migration-safe, and ready for premium Velocity networks.").append('\n').append('\n');
+        builder.append("# The version marker for this configuration file. Do not change this unless migrating.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#config_version").append('\n');
         builder.append("config_version = ").append(Config.CURRENT_VERSION).append('\n').append('\n');
 
+        // [startup]
+        builder.append("[startup]").append('\n');
+        builder.append("# Whether to show the welcome message / upgrade digest on startup.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#startup_welcome_enabled").append('\n');
+        builder.append("welcome_enabled = ").append(config.startup().welcomeEnabled()).append('\n');
+        builder.append("# The homepage/wiki URL for references and updates.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#startup_wiki_url").append('\n');
+        builder.append("wiki_url = ").append(quoted(config.startup().wikiUrl())).append('\n').append('\n');
+
+        // [commands]
         builder.append("[commands]").append('\n');
-        builder.append("# Primary command players will use.").append('\n');
+        builder.append("# The primary command players will use to navigate to the optimal lobby.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#primary").append('\n');
         builder.append("primary = ").append(quoted(config.commands().primary())).append('\n');
-        builder.append("# Aliases for the player command.").append('\n');
+        builder.append("# Command aliases that trigger the lobby redirection.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#aliases").append('\n');
         builder.append("aliases = ").append(formatList(config.commands().aliases())).append('\n');
-        builder.append("# Permission required for lobby usage. Use \"none\" to allow all players.").append('\n');
+        builder.append("# Permission required to use player commands. Use \"none\" to disable permission checks.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#permission").append('\n');
+        if ("velocitynavigator.use".equalsIgnoreCase(config.commands().permission())) {
+            builder.append("# NOTE: Default changed to \"none\" in v4.1.0. Review this setting.").append('\n');
+        }
         builder.append("permission = ").append(quoted(config.commands().permission())).append('\n');
         builder.append("# Admin command labels. The first one becomes the primary admin command.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#admin_aliases").append('\n');
         builder.append("admin_aliases = ").append(formatList(config.commands().adminAliases())).append('\n');
-        builder.append("# Cooldown in seconds for /lobby.").append('\n');
+        builder.append("# Cooldown in seconds between lobby command invocations per player.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#cooldown_seconds").append('\n');
         builder.append("cooldown_seconds = ").append(config.commands().cooldownSeconds()).append('\n');
-        builder.append("# If true, /lobby can reconnect the player to the same lobby.").append('\n');
+        builder.append("# Whether /lobby reconnects the player if they are already on the selected lobby.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Commands#reconnect_if_same_server").append('\n');
         builder.append("reconnect_if_same_server = ").append(config.commands().reconnectIfSameServer()).append('\n').append('\n');
 
+        // [routing]
         builder.append("[routing]").append('\n');
-        builder.append("# The routing brain. Controls how the plugin picks which lobby to send a player to.").append('\n');
-        builder.append("#").append('\n');
-        builder.append("# Available modes:").append('\n');
-        builder.append("#   \"least_players\"          - Sends to the lobby with the fewest players.").append('\n');
-        builder.append("#   \"round_robin\"            - Deals players sequentially.").append('\n');
-        builder.append("#   \"random\"                 - Picks a lobby at random.").append('\n');
-        builder.append("#   \"power_of_two\"           - Picks two random candidates, selects the one with fewer players.").append('\n');
-        builder.append("#   \"weighted_round_robin\"   - Round-robin weighted by lobby entry weights.").append('\n');
-        builder.append("#   \"least_connections\"      - Uses exponential moving average of player counts.").append('\n');
-        builder.append("#   \"consistent_hash\"        - Consistent hashing on player UUID for session affinity.").append('\n');
-        builder.append("#").append('\n');
-        builder.append("# See docs/routing-algorithms.md for detailed math and scenarios.").append('\n');
+        builder.append("# The routing brain mode. Determines how a lobby is selected.").append('\n');
+        builder.append("# Available modes: least_players, round_robin, random, power_of_two, weighted_round_robin, least_connections, consistent_hash").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Routing-Algorithms#selection_mode").append('\n');
         builder.append("selection_mode = ").append(quoted(config.routing().selectionMode().configValue())).append('\n');
-        builder.append("# Prefer a different lobby when the player is already in the target pool.").append('\n');
+        builder.append("# Cycle players to a different lobby when they are already on a lobby in the selection pool.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Routing-Algorithms#cycle_when_possible").append('\n');
         builder.append("cycle_when_possible = ").append(config.routing().cycleWhenPossible()).append('\n');
-        builder.append("# Use the plugin's routing brain for initial proxy connections.").append('\n');
+        builder.append("# Whether to balance players across lobbies on their initial join to the proxy.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Routing-Algorithms#balance_initial_join").append('\n');
         builder.append("balance_initial_join = ").append(config.routing().balanceInitialJoin()).append('\n');
-        builder.append("# Default lobbies used when no contextual group wins.").append('\n');
-        builder.append("# Each entry can be a plain server name string or an inline table:").append('\n');
+        builder.append("# Default lobby servers. Can be simple string server names or inline tables:").append('\n');
         builder.append("#   { server = \"lobby-1\", max_players = 100, weight = 2 }").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#default_lobbies").append('\n');
         builder.append("default_lobbies = ").append(formatLobbyEntryList(config.routing().defaultLobbies())).append('\n');
-        builder.append("# Maximum connection retry attempts when a selected server fails.").append('\n');
+        builder.append("# Max retry attempts if a connection to a selected lobby server fails.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#max_retries").append('\n');
         builder.append("max_retries = ").append(config.routing().maxRetries()).append('\n').append('\n');
 
+        // [routing.affinity]
         builder.append("[routing.affinity]").append('\n');
-        builder.append("# Player affinity controls session stickiness to previous lobby servers.").append('\n');
+        builder.append("# Session stickiness (affinity) to return players to their previous lobby server.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#affinity_enabled").append('\n');
         builder.append("enabled = ").append(config.routing().affinity().enabled()).append('\n');
-        builder.append("# Probability (0.0 to 1.0) of sticking to the same lobby server on reconnect.").append('\n');
+        builder.append("# Probability (0.0 to 1.0) that a player stays on their last server on reconnect.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#affinity_stickiness").append('\n');
         builder.append("stickiness = ").append(config.routing().affinity().stickiness()).append('\n').append('\n');
 
+        // [routing.contextual]
         builder.append("[routing.contextual]").append('\n');
-        builder.append("# Enable source-server aware routing.").append('\n');
+        builder.append("# Source-server aware routing.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#contextual_enabled").append('\n');
         builder.append("enabled = ").append(config.routing().contextual().enabled()).append('\n');
-        builder.append("# Fall back to routing.default_lobbies if the contextual group is empty or offline.").append('\n');
+        builder.append("# Fall back to default lobbies if no servers in the matched contextual group are available.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#contextual_fallback_to_default").append('\n');
         builder.append("fallback_to_default = ").append(config.routing().contextual().fallbackToDefault()).append('\n').append('\n');
 
+        // [routing.contextual.groups]
         builder.append("[routing.contextual.groups]").append('\n');
-        builder.append("# Each group can be a list of lobby entries, or a table with 'servers' and optional 'mode':").append('\n');
-        builder.append("#   bedwars = [{ server = \"bw-1\", weight = 2 }, { server = \"bw-2\" }]").append('\n');
-        builder.append("#   skywars = { servers = [{ server = \"sw-1\" }], mode = \"random\" }").append('\n');
+        builder.append("# Map contextual group name to list of lobby entries.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#contextual_groups").append('\n');
         for (Map.Entry<String, Config.GroupConfig> entry : config.routing().contextual().groups().entrySet()) {
             if (entry.getValue().mode() != null) {
                 builder.append(quoted(entry.getKey())).append(" = { servers = ").append(formatLobbyEntryList(entry.getValue().servers())).append(", mode = ").append(quoted(entry.getValue().mode().configValue())).append(" }").append('\n');
@@ -606,31 +674,55 @@ public final class ConfigManager {
         }
         builder.append('\n');
 
+        // [routing.contextual.sources]
         builder.append("[routing.contextual.sources]").append('\n');
+        builder.append("# Map source server name to contextual group name.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#contextual_sources").append('\n');
         for (Map.Entry<String, String> entry : config.routing().contextual().sources().entrySet()) {
             builder.append(quoted(entry.getKey())).append(" = ").append(quoted(entry.getValue())).append('\n');
         }
         builder.append('\n');
 
+        // [routing.contextual.fallback_chain]
         if (!config.routing().contextual().fallbackChain().isEmpty()) {
             builder.append("[routing.contextual.fallback_chain]").append('\n');
-            builder.append("# Maps a group name to an ordered list of fallback group names.").append('\n');
+            builder.append("# Maps a group name to a list of fallback group names in ordered chain.").append('\n');
+            builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#contextual_fallback_chain").append('\n');
             for (Map.Entry<String, List<String>> entry : config.routing().contextual().fallbackChain().entrySet()) {
                 builder.append(quoted(entry.getKey())).append(" = ").append(formatList(entry.getValue())).append('\n');
             }
             builder.append('\n');
         }
 
+        // [lobby]
+        builder.append("[lobby]").append('\n');
+        builder.append("# Strategy to apply when no lobby servers are available (disconnect or fallback_server).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#lobby_no_server_strategy").append('\n');
+        builder.append("no_server_strategy = ").append(quoted(config.lobbyFallback().noServerStrategy())).append('\n');
+        builder.append("# The disconnect message sent if no lobbies are online and strategy is disconnect.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#lobby_no_server_message").append('\n');
+        builder.append("no_server_message = ").append(quoted(config.lobbyFallback().noServerMessage())).append('\n');
+        builder.append("# The backup fallback server name if strategy is fallback_server.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#lobby_fallback_server").append('\n');
+        builder.append("fallback_server = ").append(quoted(config.lobbyFallback().fallbackServer())).append('\n').append('\n');
+
+        // [health_checks]
         builder.append("[health_checks]").append('\n');
-        builder.append("# Ping candidate lobbies before routing.").append('\n');
+        builder.append("# Enable pinging candidate lobbies before connecting to verify they are active.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#health_checks_enabled").append('\n');
         builder.append("enabled = ").append(config.healthChecks().enabled()).append('\n');
-        builder.append("# How long a ping can take before the server is considered unavailable.").append('\n');
+        builder.append("# Timeout in milliseconds for server ping health checks.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#health_checks_timeout_ms").append('\n');
         builder.append("timeout_ms = ").append(config.healthChecks().timeoutMs()).append('\n');
-        builder.append("# Cache server health for this many seconds. Use 0 to disable caching.").append('\n');
+        builder.append("# How long to cache server health check status in seconds. Set to 0 to disable.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#health_checks_cache_seconds").append('\n');
         builder.append("cache_seconds = ").append(config.healthChecks().cacheSeconds()).append('\n').append('\n');
 
+        // [messages]
         builder.append("[messages]").append('\n');
-        builder.append("# Supported placeholders: <server>, <time>, <reason>, <mode>, <player>, <attempt>, <max>").append('\n');
+        builder.append("# Custom messages (MiniMessage formatting recommended).").append('\n');
+        builder.append("# Placeholders: <server>, <time>, <reason>, <mode>, <player>, <attempt>, <max>").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#messages").append('\n');
         builder.append("connecting = ").append(quoted(config.messages().connecting())).append('\n');
         builder.append("already_connected = ").append(quoted(config.messages().alreadyConnected())).append('\n');
         builder.append("no_lobby_found = ").append(quoted(config.messages().noLobbyFound())).append('\n');
@@ -638,52 +730,99 @@ public final class ConfigManager {
         builder.append("cooldown = ").append(quoted(config.messages().cooldown())).append('\n');
         builder.append("reload_success = ").append(quoted(config.messages().reloadSuccess())).append('\n');
         builder.append("reload_failed = ").append(quoted(config.messages().reloadFailed())).append('\n');
-        builder.append("# Shown when a connection retry is attempted.").append('\n');
-        builder.append("retrying = ").append(quoted(config.messages().retrying())).append('\n').append('\n');
+        builder.append("retrying = ").append(quoted(config.messages().retrying())).append('\n');
+        builder.append("# Auto-detect, MiniMessage, or Legacy color format mode (auto, minimessage, legacy).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#messages_formatting").append('\n');
+        builder.append("formatting = ").append(quoted(config.messages().formatting())).append('\n');
+        builder.append("# Configurable status colors for the dashboard (MiniMessage/RGB support).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#messages_dashboard_colors").append('\n');
+        builder.append("dashboard_healthy = ").append(quoted(config.messages().dashboardHealthy())).append('\n');
+        builder.append("dashboard_draining = ").append(quoted(config.messages().dashboardDraining())).append('\n');
+        builder.append("dashboard_open = ").append(quoted(config.messages().dashboardOpen())).append('\n');
+        builder.append("dashboard_offline = ").append(quoted(config.messages().dashboardOffline())).append('\n').append('\n');
 
+        // [update_checker]
         builder.append("[update_checker]").append('\n');
-        builder.append("# Update checking is no longer auto-scheduled. Use /vn updatecheck to manually check.").append('\n');
-        builder.append("# A startup check is performed if notify_on_startup is true.").append('\n');
-        builder.append("# Options: release, beta, alpha").append('\n');
-        builder.append("channel = ").append(quoted(config.updateChecker().channel().configValue())).append('\n').append('\n');
+        builder.append("# Enable periodic update checking tasks.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#update_checker_enabled").append('\n');
+        builder.append("enabled = ").append(config.updateChecker().enabled()).append('\n');
+        builder.append("# The update channel to check (release, beta, alpha).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#update_checker_channel").append('\n');
+        builder.append("channel = ").append(quoted(config.updateChecker().channel().configValue())).append('\n');
+        builder.append("# Interval in minutes to perform update checks (minimum 30 minutes).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#update_checker_interval").append('\n');
+        builder.append("check_interval = ").append(config.updateChecker().checkIntervalMinutes()).append('\n');
+        builder.append("# Notify online admins with 'velocitynavigator.admin' permission on join if an update is found.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#update_checker_notify_admins").append('\n');
+        builder.append("notify_admins = ").append(config.updateChecker().notifyAdmins()).append('\n').append('\n');
 
-        builder.append("# Whether to check for updates once on startup and log to console.").append('\n');
-        builder.append("notify_on_startup = ").append(config.notifyOnStartup()).append('\n');
-        builder.append("# Whether to notify admins with velocitynavigator.admin permission when they join if an update is available.").append('\n');
-        builder.append("notify_admins_on_join = ").append(config.notifyAdminsOnJoin()).append('\n').append('\n');
+        // [bedrock]
+        builder.append("[bedrock]").append('\n');
+        builder.append("# Enable Bedrock/Geyser player features.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#bedrock_enabled").append('\n');
+        builder.append("enabled = ").append(config.bedrock().enabled()).append('\n');
+        builder.append("# Auto-detect Geyser/Floodgate on classpath to enable automatically.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#bedrock_auto_detect").append('\n');
+        builder.append("auto_detect = ").append(config.bedrock().autoDetect()).append('\n');
+        builder.append("# Strip advanced MiniMessage formats like gradients and hover/clicks for Bedrock clients.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#bedrock_strip_advanced_formatting").append('\n');
+        builder.append("strip_advanced_formatting = ").append(config.bedrock().stripAdvancedFormatting()).append('\n');
+        builder.append("# Use Java UUID mapped by Floodgate for Bedrock player affinity.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#bedrock_affinity_use_java_uuid").append('\n');
+        builder.append("affinity_use_java_uuid = ").append(config.bedrock().affinityUseJavaUuid()).append('\n').append('\n');
 
+        // [metrics]
         builder.append("[metrics]").append('\n');
-        builder.append("# bStats support. This can be disabled if your network requires it.").append('\n');
+        builder.append("# Enable anonymous bStats metrics collections.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#metrics_enabled").append('\n');
         builder.append("enabled = ").append(config.metrics().enabled()).append('\n').append('\n');
 
+        // [circuit_breaker]
         builder.append("[circuit_breaker]").append('\n');
-        builder.append("# Automatically stop routing to servers that fail health checks repeatedly.").append('\n');
+        builder.append("# Stop routing to lobbies that fail health checks consecutively.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#circuit_breaker_enabled").append('\n');
         builder.append("enabled = ").append(config.circuitBreaker().enabled()).append('\n');
-        builder.append("# Number of consecutive failures before opening the circuit.").append('\n');
+        builder.append("# Number of consecutive check failures before opening circuit.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#circuit_breaker_failure_threshold").append('\n');
         builder.append("failure_threshold = ").append(config.circuitBreaker().failureThreshold()).append('\n');
-        builder.append("# Seconds to wait before transitioning from OPEN to HALF_OPEN.").append('\n');
+        builder.append("# Seconds to wait in OPEN state before trying a check in HALF_OPEN.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#circuit_breaker_cooldown_seconds").append('\n');
         builder.append("cooldown_seconds = ").append(config.circuitBreaker().cooldownSeconds()).append('\n');
-        builder.append("# Number of test requests allowed in HALF_OPEN state.").append('\n');
+        builder.append("# Consecutive test successes allowed in HALF_OPEN state before closing circuit.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#circuit_breaker_half_open_max_tests").append('\n');
         builder.append("half_open_max_tests = ").append(config.circuitBreaker().halfOpenMaxTests()).append('\n').append('\n');
 
+        // [degradation]
         builder.append("[degradation]").append('\n');
-        builder.append("# When no routing selection is available, fall back to a degraded selection mode.").append('\n');
+        builder.append("# Fall back to degraded selection if all primary servers are full/offline.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#degradation_enabled").append('\n');
         builder.append("enabled = ").append(config.degradation().enabled()).append('\n');
-        builder.append("# Degradation mode: random, round_robin, least_players").append('\n');
+        builder.append("# Selection mode for degraded routing (random, round_robin, least_players).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#degradation_mode").append('\n');
         builder.append("mode = ").append(quoted(config.degradation().mode())).append('\n').append('\n');
 
+        // [geo_routing]
         builder.append("[geo_routing]").append('\n');
-        builder.append("# EXPERIMENTAL: Geo-based routing. Requires MaxMind GeoLite2 database (separate download).").append('\n');
-        builder.append("# Falls back gracefully when no database is configured.").append('\n');
+        builder.append("# Geographic IP-based routing (placeholder stub).").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#geo_routing_enabled").append('\n');
         builder.append("enabled = ").append(config.geoRouting().enabled()).append('\n');
-        builder.append("# Path to GeoLite2-City.mmdb (relative to plugin data directory or absolute).").append('\n');
+        builder.append("# Path to GeoLite2 City mmdb file.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#geo_routing_database_path").append('\n');
         builder.append("database_path = ").append(quoted(config.geoRouting().databasePath())).append('\n').append('\n');
 
+        // [debug]
         builder.append("[debug]").append('\n');
-        builder.append("# Adds extra routing diagnostics to the console.").append('\n');
+        builder.append("# Enable verbose routing decision logs in proxy console.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#debug_verbose_logging").append('\n');
         builder.append("verbose_logging = ").append(config.debug().verboseLogging()).append('\n');
 
-        Files.writeString(configPath, builder.toString());
+        java.nio.file.Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
+        Files.writeString(tempPath, builder.toString());
+        try {
+            Files.move(tempPath, configPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.io.IOException e) {
+            Files.move(tempPath, configPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private String formatLobbyEntryList(List<Config.LobbyEntry> entries) {

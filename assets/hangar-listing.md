@@ -5,13 +5,25 @@
 > [!IMPORTANT]
 > **Velocity-Only Proxy Plugin:** VelocityNavigator runs exclusively on your **Velocity proxy server (3.x)**. It will not load or function if installed on Bukkit, Spigot, Paper, Purpur, or Folia backend servers. Install the JAR on your **Velocity proxy's plugins folder**, not your backend servers.
 
-**VelocityNavigator v4** is a production-grade Velocity proxy plugin that delivers absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, and a highly context-aware `/lobby` system.
+**VelocityNavigator v4.1** is a production-grade Velocity proxy plugin that delivers absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, Bedrock/Geyser support, and a highly context-aware `/lobby` system.
 
 No more funneling all new players into a single hub. No more sending players to offline servers. No more guessing which lobby they ended up on.
 
 ![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
 
-## What's New in v4
+## What's New in v4.1
+
+- **Bedrock/Geyser Support** — Seamless Bedrock player routing with Floodgate UUID mapping and format stripping
+- **`/vn servers` Dashboard** — Paginated diagnostics with CB, drain, and capacity status per lobby
+- **Legacy Color Code Converter** — Auto-detects and converts `&`/`§` codes to MiniMessage in `auto`/`legacy`/`minimessage` modes
+- **Levenshtein Config Validation** — Typo auto-correction with suggestions for all TOML enum keys
+- **Self-Documenting Config** — Every TOML key gets rich comments + wiki anchors on write/migration
+- **First-Run Welcome & Upgrades Digest** — Console dashboard on fresh install, release notes on upgrades
+- **Periodic Update Checker** — Scheduled checks with exponential 429 backoff (up to 4 hours)
+- **Empty Lobby Fallbacks** — Configurable `disconnect` or `fallback_server` strategy
+- **Permission Default Change** — `/lobby` defaults to `"none"` for immediate out-of-the-box use
+
+### v4.0 Features Included
 
 - **7 Selection Algorithms** — `least_players`, `random`, `round_robin`, `power_of_two` (recommended), `weighted_round_robin`, `least_connections`, `consistent_hash`
 - **Circuit Breaker** — Automatic failure detection with CLOSED → OPEN → HALF_OPEN state machine
@@ -20,7 +32,6 @@ No more funneling all new players into a single hub. No more sending players to 
 - **Connection Retry & Fallback Chain** — Configurable retry with priority-based fallback groups
 - **Admin Update Notifications** — Automatic check on proxy start + admin join alerts
 - **Per-Group Mode Override** — Different routing algorithms per contextual group
-- **Self-Documenting Config** — Auto-migrates from v3 with `.bak` backup
 
 ## Why VelocityNavigator?
 
@@ -82,6 +93,7 @@ Player is connected to the best available lobby
 | `/vn undrain <server>` | `velocitynavigator.admin` | Remove drain mode from a server |
 | `/vn drain status` | `velocitynavigator.admin` | View all drained servers |
 | `/vn updatecheck` | `velocitynavigator.admin` | Check for plugin updates |
+| `/vn servers` | `velocitynavigator.admin` | Show paginated lobby server status dashboard |
 | `/vn version` | `velocitynavigator.admin` | Display installed version |
 
 ## Quick Installation
@@ -96,7 +108,7 @@ Player is connected to the best available lobby
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `velocitynavigator.use` | `true` | Allows players to use the primary `/lobby` command (and aliases like `/hub`). |
+| `velocitynavigator.use` | `none*` | Allows players to use the primary `/lobby` command (and aliases like `/hub`). Default changed to `"none"` in v4.1.0. |
 | `velocitynavigator.admin` | `false` | Access to all administrative diagnostic and maintenance commands (`/vn`). |
 | `velocitynavigator.bypass.cooldown` | `false` | Bypasses the configured lobby command anti-spam cooldown timer. |
 | `velocitynavigator.bypasscooldown` | `false` | Legacy alias for bypassing the lobby command cooldown timer. |
@@ -104,7 +116,7 @@ Player is connected to the best available lobby
 ## Quick Config Example
 
 ```toml
-# VelocityNavigator v4.0.0 Configuration
+# VelocityNavigator v4.1.0 Configuration
 
 notify_on_startup = true
 notify_admins_on_join = true
@@ -112,7 +124,7 @@ notify_admins_on_join = true
 [commands]
 primary = "lobby"
 aliases = ["hub", "spawn"]
-permission = "velocitynavigator.use"
+permission = "none"
 admin_aliases = ["velocitynavigator", "vn"]
 cooldown_seconds = 3
 reconnect_if_same_server = false
@@ -146,6 +158,17 @@ cache_seconds = 60
 
 [update_checker]
 channel = "release"
+
+[bedrock]
+enabled = false
+auto_detect = true
+strip_advanced_formatting = true
+affinity_use_java_uuid = true
+
+[lobby]
+no_server_strategy = "disconnect"
+no_server_message = "<red>No lobby servers are currently available. Please try again later.</red>"
+fallback_server = ""
 ```
 
 ## Compatibility

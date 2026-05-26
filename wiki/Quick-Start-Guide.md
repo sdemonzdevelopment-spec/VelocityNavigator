@@ -6,13 +6,13 @@
 
 ## Step 1: Download and Install
 
-1. Download `VelocityNavigator-4.0.0.jar` from the [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases) page
+1. Download `VelocityNavigator-4.1.0.jar` from the [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases) page
 2. Place the JAR in your Velocity proxy's `plugins/` folder
 3. Restart the proxy (or run `/vn reload` if you're already running an older version)
 
 ```
 plugins/
-├── VelocityNavigator-4.0.0.jar
+├── VelocityNavigator-4.1.0.jar
 └── ...
 ```
 
@@ -113,4 +113,4 @@ Verify distribution across your servers:
 
 ---
 
-**Total time: ~5 minutes.** Welcome to VelocityNavigator v4! 🎉
+**Total time: ~5 minutes.** Welcome to VelocityNavigator v4.1! 🎉

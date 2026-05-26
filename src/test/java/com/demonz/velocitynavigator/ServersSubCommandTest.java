@@ -1,0 +1,93 @@
+package com.demonz.velocitynavigator;
+
+import com.velocitypowered.api.command.CommandSource;
+import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
+import com.velocitypowered.api.proxy.server.ServerInfo;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ServersSubCommandTest {
+
+    @TempDir
+    Path tempDir;
+
+    private CommandSource createMockSource(List<String> messages) {
+        return (CommandSource) java.lang.reflect.Proxy.newProxyInstance(
+                CommandSource.class.getClassLoader(),
+                new Class<?>[]{CommandSource.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage") && args.length == 1 && args[0] instanceof Component component) {
+                        messages.add(PlainTextComponentSerializer.plainText().serialize(component));
+                    }
+                    return null;
+                }
+        );
+    }
+
+    private ProxyServer createMockProxyServer() {
+        return (ProxyServer) java.lang.reflect.Proxy.newProxyInstance(
+                ProxyServer.class.getClassLoader(),
+                new Class<?>[]{ProxyServer.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getServer") && args.length == 1) {
+                        String name = (String) args[0];
+                        RegisteredServer registered = (RegisteredServer) java.lang.reflect.Proxy.newProxyInstance(
+                                RegisteredServer.class.getClassLoader(),
+                                new Class<?>[]{RegisteredServer.class},
+                                (rsProxy, rsMethod, rsArgs) -> {
+                                    if (rsMethod.getName().equals("getServerInfo")) {
+                                        return new ServerInfo(name, new InetSocketAddress("localhost", 25565));
+                                    } else if (rsMethod.getName().equals("getPlayersConnected")) {
+                                        return Collections.emptyList();
+                                    } else if (rsMethod.getName().equals("ping")) {
+                                        return CompletableFuture.failedFuture(new RuntimeException("Offline"));
+                                    }
+                                    return null;
+                                }
+                        );
+                        return Optional.of(registered);
+                    }
+                    return null;
+                }
+        );
+    }
+
+    @Test
+    void executeRendersDashboardCorrectly() throws Exception {
+        ProxyServer mockProxy = createMockProxyServer();
+        VelocityNavigator plugin = new VelocityNavigator(
+                mockProxy,
+                LoggerFactory.getLogger("servers-subcommand-test"),
+                tempDir,
+                null
+        );
+
+        // Load config and initialize plugin
+        plugin.onProxyInitialization(null);
+
+        List<String> messages = new ArrayList<>();
+        CommandSource source = createMockSource(messages);
+
+        // Run command and join synchronously
+        ServersSubCommand.execute(source, new String[]{"servers"}, plugin).join();
+
+        // Verify output
+        assertTrue(messages.stream().anyMatch(msg -> msg.contains("Lobby Status")));
+        assertTrue(messages.stream().anyMatch(msg -> msg.contains("lobby-1")));
+        assertTrue(messages.stream().anyMatch(msg -> msg.contains("lobby-2")));
+    }
+}

@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
 
 public final class RouteSelectionStrategy {
 
@@ -64,7 +65,7 @@ public final class RouteSelectionStrategy {
         }
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         int i = rng.nextInt(candidates.size());
-        int j = rng.nextInt(candidates.size());
+        int j = (i + 1 + rng.nextInt(candidates.size() - 1)) % candidates.size();
         ServerCandidate a = candidates.get(i);
         ServerCandidate b = candidates.get(j);
         return Optional.of(a.playerCount() <= b.playerCount() ? a : b);
@@ -75,6 +76,7 @@ public final class RouteSelectionStrategy {
         WeightedRoundRobinState state = wrrState.computeIfAbsent(key, k -> new WeightedRoundRobinState());
 
         synchronized (state) {
+            state.pruneStaleEntries(candidates);
             // Interleaved WRR algorithm
             int totalWeight = 0;
             for (ServerCandidate c : candidates) {
@@ -122,6 +124,14 @@ public final class RouteSelectionStrategy {
 
         void subtractWeight(String serverName, int totalWeight) {
             currentWeights.compute(serverName, (k, v) -> (v == null ? 0 : v) - totalWeight);
+        }
+
+        void pruneStaleEntries(List<ServerCandidate> activeCandidates) {
+            Set<String> activeNames = new java.util.HashSet<>();
+            for (ServerCandidate c : activeCandidates) {
+                activeNames.add(c.name());
+            }
+            currentWeights.keySet().removeIf(name -> !activeNames.contains(name));
         }
     }
 }

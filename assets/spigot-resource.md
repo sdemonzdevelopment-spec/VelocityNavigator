@@ -17,8 +17,17 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 
 ![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
 
-## 🚀 v4.0.0 Feature Highlights
+## 🚀 v4.1.0 Feature Highlights
 
+- **Bedrock/Geyser Support:** Seamless routing for Bedrock players with Floodgate UUID mapping. Strips gradients, hovers, and clicks for clean display on Bedrock clients.
+- **`/vn servers` Dashboard:** Paginated lobby diagnostics showing player count, circuit breaker state, drain status, and per-server capacity.
+- **Legacy Color Code Converter:** Auto-detects `&` and `§` codes and converts to MiniMessage. Supports `auto`, `legacy`, and `minimessage` modes.
+- **Levenshtein Config Validation:** Typo auto-correction with distance-based suggestions for all TOML settings.
+- **Self-Documenting Config:** Every key in `navigator.toml` auto-generates rich comments with wiki anchor links.
+- **First-Run Welcome & Upgrades:** Console dashboard on fresh install, release notes digest on upgrades.
+- **Periodic Update Checker:** Scheduled Modrinth checks with exponential backoff on HTTP 429 (up to 4 hours).
+- **Empty Lobby Fallbacks:** Configurable `disconnect` or `fallback_server` strategy when all lobbies are unreachable.
+- **Permission Default Change:** `/lobby` now defaults to `"none"` — works out of the box without permission plugins.
 - **Initial Join Balancing:** Load-balance players the absolute millisecond they hit the proxy, before they even finish authentication.
 - **7 Selection Algorithms:**
   - `least_players` - Best for simple even load distribution.
@@ -48,6 +57,7 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 - `/vn drain <server>` — Gracefully empty a lobby server for maintenance. No new connections will be routed to it.
 - `/vn undrain <server>` — Resume normal routing to a previously drained server.
 - `/vn drain status` — View all currently drained servers.
+- `/vn servers` — Show paginated lobby server status dashboard with health, drain, and capacity info.
 - `/vn updatecheck` — Manually trigger a query to check for the latest plugin releases.
 
 ## Installation
@@ -62,7 +72,7 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 
 | Permission | Purpose |
 |-----------|---------|
-| `velocitynavigator.use` | Use `/lobby` |
+| `velocitynavigator.use` | Use `/lobby` — default changed to `"none"` in v4.1.0 |
 | `velocitynavigator.admin` | Admin commands (hidden from non-admins) |
 | `velocitynavigator.bypasscooldown` | Bypass `/lobby` cooldown |
 

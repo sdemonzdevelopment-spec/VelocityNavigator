@@ -1,7 +1,7 @@
 # Initial Join Balancing
 
 > [!TIP]  
-> **New in v4.0.0** — Load-balance players the moment they connect to the proxy, bypassing the rigid configurations of vanilla Velocity!
+> **New in v4.0.0** *(updated in v4.1.0)* — Load-balance players the moment they connect to the proxy, bypassing the rigid configurations of vanilla Velocity!
 
 ---
 
@@ -20,7 +20,7 @@ Velocity always tries the **first server** in the list. If `lobby-1` is online, 
 
 ## ⚡ The VelocityNavigator Solution
 
-VelocityNavigator v4.0.0 intercepts the `PlayerChooseInitialServerEvent` and forcefully applies its routing brain **before** the player's client ever lands on any server.
+VelocityNavigator v4.1.0 intercepts the `PlayerChooseInitialServerEvent` and forcefully applies its routing brain **before** the player's client ever lands on any server.
 
 ```mermaid
 sequenceDiagram

@@ -40,11 +40,11 @@ public final class MetricsService {
         }
 
         metrics = metricsFactory.make(plugin, BSTATS_PLUGIN_ID);
-        metrics.addCustomChart(new SimplePie("selection_mode", () -> currentConfig().routing().selectionMode().configValue()));
-        metrics.addCustomChart(new SimplePie("contextual_routing_enabled", () -> Boolean.toString(currentConfig().routing().contextual().enabled())));
-        metrics.addCustomChart(new SimplePie("health_checks_enabled", () -> Boolean.toString(currentConfig().healthChecks().enabled())));
+        metrics.addCustomChart(new SimplePie("selection_mode", () -> safeGet(() -> currentConfig().routing().selectionMode().configValue(), "unknown")));
+        metrics.addCustomChart(new SimplePie("contextual_routing_enabled", () -> safeGet(() -> Boolean.toString(currentConfig().routing().contextual().enabled()), "false")));
+        metrics.addCustomChart(new SimplePie("health_checks_enabled", () -> safeGet(() -> Boolean.toString(currentConfig().healthChecks().enabled()), "false")));
         metrics.addCustomChart(new SimplePie("default_lobby_bucket", this::lobbyBucket));
-        metrics.addCustomChart(new SimplePie("circuit_breaker_enabled", () -> Boolean.toString(currentConfig().circuitBreaker().enabled())));
+        metrics.addCustomChart(new SimplePie("circuit_breaker_enabled", () -> safeGet(() -> Boolean.toString(currentConfig().circuitBreaker().enabled()), "false")));
         active = true;
         statusLine = "Active";
     }
@@ -62,19 +62,32 @@ public final class MetricsService {
     }
 
     private String lobbyBucket() {
-        int size = currentConfig().routing().defaultLobbies().size();
-        if (size <= 0) {
+        try {
+            var lobbies = currentConfig().routing().defaultLobbies();
+            int size = lobbies == null ? 0 : lobbies.size();
+            if (size <= 0) {
+                return "0";
+            }
+            if (size == 1) {
+                return "1";
+            }
+            if (size <= 3) {
+                return "2-3";
+            }
+            if (size <= 6) {
+                return "4-6";
+            }
+            return "7+";
+        } catch (Exception e) {
             return "0";
         }
-        if (size == 1) {
-            return "1";
+    }
+
+    private String safeGet(java.util.function.Supplier<String> supplier, String fallback) {
+        try {
+            return supplier.get();
+        } catch (Exception e) {
+            return fallback;
         }
-        if (size <= 3) {
-            return "2-3";
-        }
-        if (size <= 6) {
-            return "4-6";
-        }
-        return "7+";
     }
 }

@@ -1,7 +1,7 @@
 [CENTER]
 [IMG]https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/hero-banner.png?v=4[/IMG]
 
-[SIZE=6][B][COLOR=#00bfff]VelocityNavigator v4[/COLOR][/B][/SIZE]
+[SIZE=6][B][COLOR=#00bfff]VelocityNavigator v4.1[/COLOR][/B][/SIZE]
 [SIZE=4][I]Premium lobby navigation and intelligent load balancing for Velocity proxies.[/I][/SIZE]
 [SIZE=3]Built with ❤️ by [URL='https://github.com/sdemonzdevelopment-spec']DemonZ Development[/URL][/SIZE]
 
@@ -17,9 +17,18 @@ This listing exists for visibility and download discovery. Install the JAR on yo
 
 [HR][/HR]
 
-[SIZE=5][B][COLOR=#00bfff]🧠 v4.0.0 Feature Highlights[/COLOR][/B][/SIZE]
+[SIZE=5][B][COLOR=#00bfff]🧠 v4.1.0 Feature Highlights[/COLOR][/B][/SIZE]
 
 [LIST]
+[*][B][COLOR=#00bfff]Bedrock/Geyser Support[/COLOR][/B] — Seamless Bedrock player routing with Floodgate UUID mapping and format stripping.
+[*][B][COLOR=#00bfff]/vn servers Dashboard[/COLOR][/B] — Paginated lobby diagnostics with CB, drain, and capacity status per server.
+[*][B][COLOR=#00bfff]Legacy Color Code Converter[/COLOR][/B] — Auto-detects and converts [B]&[/B] and [B]§[/B] codes to MiniMessage in auto/legacy/minimessage modes.
+[*][B][COLOR=#00bfff]Levenshtein Config Validation[/COLOR][/B] — Typo auto-correction with suggestions for all TOML enum settings.
+[*][B][COLOR=#00bfff]Self-Documenting Config[/COLOR][/B] — Every config key auto-generates rich comments with wiki anchor links on write/migration.
+[*][B][COLOR=#00bfff]First-Run Welcome & Upgrades Digest[/COLOR][/B] — Console welcome dashboard on fresh install, release notes on upgrades.
+[*][B][COLOR=#00bfff]Periodic Update Checker[/COLOR][/B] — Scheduled checks with exponential HTTP 429 backoff up to 4 hours.
+[*][B][COLOR=#00bfff]Empty Lobby Fallbacks[/COLOR][/B] — Configurable disconnect or fallback_server strategy when all lobbies are unreachable.
+[*][B][COLOR=#00bfff]Permission Default Changed[/COLOR][/B] — [B]/lobby[/B] now defaults to [B]"none"[/B] — works out of the box without permission plugins.
 [*][B][COLOR=#00bfff]Initial Join Balancing[/COLOR][/B] — Bypasses Velocity's static fallback engine to perfectly split initial proxy connection waves across lobbies before authentication completes.
 [*][B][COLOR=#00bfff]7 Load Balancing Algorithms[/COLOR][/B] — Pick the perfect strategy for your network:
 [LIST]
@@ -62,6 +71,7 @@ This listing exists for visibility and download discovery. Install the JAR on yo
 [*][B]/vn drain <server>[/B] — Gracefully empties a lobby server for maintenance. No new connections will be routed to it.
 [*][B]/vn undrain <server>[/B] — Resume routing to a previously drained server.
 [*][B]/vn drain status[/B] — Lists all currently drained lobby servers.
+[*][B]/vn servers[/B] — Show paginated lobby server status dashboard with health, drain, and capacity info.
 [*][B]/vn updatecheck[/B] — Manually query for plugin updates.
 [/LIST]
 
@@ -71,7 +81,7 @@ This listing exists for visibility and download discovery. Install the JAR on yo
 
 [LIST=1]
 [*]Install [B]Velocity 3.x[/B] on your proxy.
-[*]Place the [B]VelocityNavigator-4.0.0.jar[/B] in your `plugins/` directory.
+[*]Place the [B]VelocityNavigator-4.1.0.jar[/B] in your `plugins/` directory.
 [*]Start the proxy once — a highly documented [B]navigator.toml[/B] will generate automatically.
 [*]Edit the config to specify your lobby servers and preferred strategy.
 [*]Run [B]/vn reload[/B] to apply changes!
@@ -82,7 +92,7 @@ This listing exists for visibility and download discovery. Install the JAR on yo
 [SIZE=5][B][COLOR=#00bfff]🔑 Permissions[/COLOR][/B][/SIZE]
 
 [LIST]
-[*][B]velocitynavigator.use[/B] — Allows use of [COLOR=#00bfff]/lobby[/COLOR] (Default: true)
+[*][B]velocitynavigator.use[/B] — Allows use of [COLOR=#00bfff]/lobby[/COLOR] (Default: none, changed in v4.1.0)
 [*][B]velocitynavigator.admin[/B] — Access to all administrative diagnostic commands (Default: false)
 [*][B]velocitynavigator.bypass.cooldown[/B] — Bypasses lobby command cooldown timer (Default: false)
 [/LIST]

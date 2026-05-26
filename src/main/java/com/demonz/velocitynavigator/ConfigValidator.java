@@ -1,0 +1,116 @@
+package com.demonz.velocitynavigator;
+
+import com.moandjiezana.toml.Toml;
+import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+public final class ConfigValidator {
+
+    private ConfigValidator() {
+    }
+
+    public static List<String> validate(Config config, Toml toml) {
+        List<String> warnings = new ArrayList<>();
+        if (toml == null) {
+            return warnings;
+        }
+
+        // 1. Validate routing.selection_mode
+        List<String> selectionModes = List.of("least_players", "random", "round_robin", "power_of_two", "weighted_round_robin", "least_connections", "consistent_hash");
+        validateKey(toml, "routing.selection_mode", selectionModes, warnings);
+
+        // 2. Validate update_checker.channel
+        List<String> channels = List.of("release", "beta", "alpha");
+        validateKey(toml, "update_checker.channel", channels, warnings);
+
+        // 3. Validate degradation.mode
+        List<String> degradationModes = List.of("random", "round_robin", "least_players");
+        validateKey(toml, "degradation.mode", degradationModes, warnings);
+
+        // 4. Validate lobby.no_server_strategy
+        List<String> strategies = List.of("disconnect", "fallback_server");
+        validateKey(toml, "lobby.no_server_strategy", strategies, warnings);
+
+        // 5. Validate messages.formatting
+        List<String> formattingOptions = List.of("auto", "minimessage", "legacy");
+        validateKey(toml, "messages.formatting", formattingOptions, warnings);
+
+        return warnings;
+    }
+
+    private static void validateKey(Toml toml, String path, List<String> validOptions, List<String> warnings) {
+        Object rawVal = rawValue(toml, path);
+        if (rawVal == null) {
+            return;
+        }
+        if (!(rawVal instanceof String raw)) {
+            warnings.add(String.format("Value at '%s' is not a string.", path));
+            return;
+        }
+        String cleaned = raw.trim().toLowerCase(Locale.ROOT);
+        if (!validOptions.contains(cleaned)) {
+            String suggestion = getSuggestion(cleaned, validOptions);
+            warnings.add(String.format("Unknown value '%s' for key '%s'. %s", raw, path, suggestion));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object rawValue(Toml toml, String path) {
+        Object current = toml.toMap();
+        for (String part : path.split("\\.")) {
+            if (!(current instanceof Map<?, ?> map)) {
+                return null;
+            }
+            current = ((Map<String, Object>) map).get(part);
+            if (current == null) {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    public static String getSuggestion(String input, List<String> validOptions) {
+        String closest = null;
+        int minDistance = Integer.MAX_VALUE;
+        for (String option : validOptions) {
+            int distance = levenshtein(input, option);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closest = option;
+            }
+        }
+        if (minDistance <= 2 && closest != null) {
+            return "Did you mean '" + closest + "'?";
+        } else {
+            return "Valid options are: " + String.join(", ", validOptions);
+        }
+    }
+
+    public static int levenshtein(String s1, String s2) {
+        if (s1 == null || s2 == null) {
+            return Integer.MAX_VALUE;
+        }
+        int[] dp = new int[s2.length() + 1];
+        for (int j = 0; j <= s2.length(); j++) {
+            dp[j] = j;
+        }
+        for (int i = 1; i <= s1.length(); i++) {
+            int prev = dp[0];
+            dp[0] = i;
+            for (int j = 1; j <= s2.length(); j++) {
+                int temp = dp[j];
+                if (s1.charAt(i - 1) == s2.charAt(j - 1)) {
+                    dp[j] = prev;
+                } else {
+                    dp[j] = Math.min(Math.min(dp[j - 1], dp[j]), prev) + 1;
+                }
+                prev = temp;
+            }
+        }
+        return dp[s2.length()];
+    }
+}

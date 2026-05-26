@@ -12,7 +12,7 @@ Add VelocityNavigator as a Maven compilation dependency in your core `pom.xml`:
 <dependency>
     <groupId>com.demonz</groupId>
     <artifactId>VelocityNavigator</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
     <scope>provided</scope>
 </dependency>
 ```

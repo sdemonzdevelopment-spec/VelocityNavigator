@@ -18,13 +18,13 @@ Also back up your entire `plugins/velocitynavigator/` directory if you want to b
 
 ## Step 1: Replace the JAR
 
-1. Download `VelocityNavigator-4.0.0.jar` from [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases)
+1. Download `VelocityNavigator-4.1.0.jar` from [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases)
 2. Remove the old JAR from `plugins/`
 3. Place the new JAR in `plugins/`
 
 ```
 plugins/
-├── VelocityNavigator-4.0.0.jar   ← new
+├── VelocityNavigator-4.1.0.jar   ← new
 └── velocitynavigator/
     ├── navigator.toml              ← will be auto-migrated
     └── ...
@@ -172,6 +172,40 @@ If v4 causes issues, you can rollback:
    cp plugins/velocitynavigator/navigator.toml.v3-backup plugins/velocitynavigator/navigator.toml
    ```
 4. Start the proxy
+
+---
+
+---
+
+## v4.1.0 Update: Config Version v5
+
+If upgrading from v4.0.0 to v4.1.0, the config will auto-migrate from version 4 to version 5:
+
+### New v4.1 Config Sections
+
+```
+[startup]         → Welcome messages & wiki URL
+[lobby]           → Empty lobby strategy (disconnect / fallback_server)
+[bedrock]         → Bedrock/Geyser player support
+```
+
+### New v4.1 Config Keys
+
+- `messages.formatting` — Legacy color conversion mode (`auto`, `minimessage`, `legacy`)
+- `messages.dashboard_healthy` / `dashboard_draining` / `dashboard_open` / `dashboard_offline` — Customizable `/vn servers` status colors
+- `startup.welcome_enabled` / `startup.wiki_url` — First-run experience
+- `lobby.no_server_strategy` / `lobby.no_server_message` / `lobby.fallback_server` — Empty lobby fallbacks
+- `bedrock.*` — Full Bedrock/Geyser configuration block
+
+### Permission Default Changed
+
+In v4.1.0, `commands.permission` defaults to `"none"` instead of `"velocitynavigator.use"`. Existing configs with a custom permission are preserved during migration.
+
+### New Commands
+
+| Command | Description |
+|---------|-------------|
+| `/vn servers` | Paginated lobby server status dashboard |
 
 ---
 

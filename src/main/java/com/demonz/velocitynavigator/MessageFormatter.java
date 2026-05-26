@@ -1,5 +1,6 @@
 package com.demonz.velocitynavigator;
 
+import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -14,12 +15,48 @@ public final class MessageFormatter {
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
     private static final Set<String> ALLOWED_PLACEHOLDERS = Set.of("server", "time", "reason", "mode", "player", "attempt", "max");
+    private static final java.util.concurrent.atomic.AtomicBoolean warned = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private MessageFormatter() {
     }
 
+    private static String preprocess(String template) {
+        if (template == null || template.isEmpty()) {
+            return "";
+        }
+        String formatting = "auto";
+        String wikiUrl = "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki";
+        org.slf4j.Logger logger = null;
+
+        NavigatorAPI api = NavigatorAPIProvider.get();
+        if (api instanceof VelocityNavigator plugin) {
+            Config config = plugin.config();
+            if (config != null) {
+                formatting = config.messages().formatting();
+                wikiUrl = config.startup().wikiUrl();
+            }
+            logger = plugin.logger();
+        }
+
+        if ("minimessage".equalsIgnoreCase(formatting)) {
+            return template;
+        }
+
+        boolean hasLegacy = LegacyColorConverter.hasLegacyCodes(template);
+        if (hasLegacy) {
+            if ("auto".equalsIgnoreCase(formatting) || "legacy".equalsIgnoreCase(formatting)) {
+                if ("auto".equalsIgnoreCase(formatting) && warned.compareAndSet(false, true) && logger != null) {
+                    logger.warn("[VelocityNavigator] Legacy color codes detected in config. Consider using MiniMessage format. See: {}/Configuration-Guide#messages", wikiUrl);
+                }
+                return LegacyColorConverter.convert(template);
+            }
+        }
+
+        return template;
+    }
+
     public static Component render(String template) {
-        return MINI_MESSAGE.deserialize(template == null ? "" : template);
+        return MINI_MESSAGE.deserialize(preprocess(template));
     }
 
     public static Component render(String template, Map<String, String> placeholders) {
@@ -36,6 +73,40 @@ public final class MessageFormatter {
         if (resolvers.isEmpty()) {
             return render(template);
         }
-        return MINI_MESSAGE.deserialize(template == null ? "" : template, TagResolver.resolver(resolvers));
+        return MINI_MESSAGE.deserialize(preprocess(template), TagResolver.resolver(resolvers));
+    }
+
+    public static Component render(String template, Player player) {
+        Component rendered = render(template);
+        if (player == null) {
+            return rendered;
+        }
+        NavigatorAPI api = NavigatorAPIProvider.get();
+        if (api instanceof VelocityNavigator plugin) {
+            Config config = plugin.config();
+            if (plugin.bedrockHandler() != null && plugin.bedrockHandler().isBedrockPlayer(player, config)) {
+                if (config != null && config.bedrock() != null && config.bedrock().stripAdvancedFormatting()) {
+                    return BedrockHandler.formatForBedrock(rendered);
+                }
+            }
+        }
+        return rendered;
+    }
+
+    public static Component render(String template, Map<String, String> placeholders, Player player) {
+        Component rendered = render(template, placeholders);
+        if (player == null) {
+            return rendered;
+        }
+        NavigatorAPI api = NavigatorAPIProvider.get();
+        if (api instanceof VelocityNavigator plugin) {
+            Config config = plugin.config();
+            if (plugin.bedrockHandler() != null && plugin.bedrockHandler().isBedrockPlayer(player, config)) {
+                if (config != null && config.bedrock() != null && config.bedrock().stripAdvancedFormatting()) {
+                    return BedrockHandler.formatForBedrock(rendered);
+                }
+            }
+        }
+        return rendered;
     }
 }

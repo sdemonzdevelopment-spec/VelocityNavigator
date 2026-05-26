@@ -23,7 +23,7 @@ class ConfigManagerTest {
         ConfigLoadResult result = manager.load();
 
         assertTrue(result.createdDefault());
-        assertEquals(4, result.config().configVersion());
+        assertEquals(5, result.config().configVersion());
         assertTrue(Files.exists(tempDir.resolve("navigator.toml")));
     }
 
@@ -88,7 +88,7 @@ class ConfigManagerTest {
         assertFalse(result.warnings().isEmpty());
         assertEquals(Config.SelectionMode.LEAST_PLAYERS, result.config().routing().selectionMode());
         assertEquals(3, result.config().commands().cooldownSeconds());
-        assertEquals("velocitynavigator.use", result.config().commands().permission());
+        assertEquals("none", result.config().commands().permission());
         assertTrue(result.config().healthChecks().enabled());
         assertEquals(30, result.config().healthChecks().cacheSeconds());
         assertEquals("hub", result.config().commands().aliases().get(0));

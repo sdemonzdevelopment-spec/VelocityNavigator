@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [4.1.0] — 2026-05-26
+
+### Added
+
+- **Bedrock/Geyser Player Support** — Soft-dependency integration with Geyser and Floodgate. Strips advanced Kyori Component formatting (gradients, hover, click actions) to display beautifully on Bedrock clients, and maps authentic Java UUIDs for player affinity tracking.
+- **First-Run Experience Polish** — Beautiful console-printed welcome dashboard on fresh installs. Detects plugin upgrades and showcases a clean release notes changelog digest.
+- **`/vn servers` Diagnostics Command** — Elegant paginated status dashboard for all configured lobbies, complete with player count/max capacity limits, circuit breaker state tracking, and drain statuses.
+- **Configurable Dashboard Colors** — Customizable status tags/colors for `/vn servers` supporting full hex, RGB, and MiniMessage styling in `navigator.toml`.
+- **Typo Auto-Correction & Levenshtein Validation** — Dynamic typo detection on config reload/load using Levenshtein distance metrics (e.g., suggesting `"least_players"` for `"leadt_players"`).
+- **Self-Documenting Configuration Keys** — The entire `navigator.toml` file comments are dynamically populated on generation/migration, pointing users to the exact section anchor of the official Wiki page.
+- **Automatic Legacy Color Code Converter** — Seamlessly matches and converts all 22 standard `&` and `§` legacy formatting codes to MiniMessage syntax on load (supports `"auto"` with one-time warnings, `"minimessage"`, or `"legacy"` modes).
+- **Periodic Update Checker with Backoff** — Recurring scheduled task loop to check for updates with exponential backoff on HTTP 429 errors (scales dynamically up to 4 hours).
+- **Empty Lobby Routing Fallbacks** — Customizable degradation strategies (`"disconnect"` or `"fallback_server"`) when all primary lobby options are offline or circuit-broken.
+- **Permission Default Change** — Standardized `/lobby` default command permission changed to `"none"` for immediate out-of-the-box adoption. Existing migration preserves existing admin-defined configurations safely.
+
 ## [4.0.0] — 2026-05-01
 
 ### Added

@@ -1,12 +1,16 @@
 name: Build & Release
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version (e.g. 3.0.0)'
         required: true
-        default: '3.0.0'
+        default: '4.1.0'
       create_release:
         description: 'Create a GitHub Release?'
         required: true
@@ -50,6 +54,6 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: VelocityNavigator v${{ inputs.version }}
           body_path: release_notes.md
-          files: target/VelocityNavigator-${{ inputs.version }}.jar
+          files: target/VelocityNavigator-*.jar
           draft: false
           prerelease: false

@@ -1,6 +1,6 @@
 # VelocityNavigator Configuration Guide
 
-> Complete reference for every setting in `navigator.toml` — v4.0.0
+> Complete reference for every setting in `navigator.toml` — v4.1.0
 
 ---
 
@@ -9,7 +9,7 @@
 The configuration file `navigator.toml` is organized into these sections:
 
 1. `[commands]` — Player commands, aliases, permissions, cooldown
-2. `[messages]` — All player-facing messages with MiniMessage formatting
+2. `[messages]` — All player-facing messages with MiniMessage formatting, legacy color conversion, and dashboard status colors
 3. `[routing]` — Selection algorithm, lobby pool, and core routing behavior
 4. `[circuit_breaker]` — Automatic failure detection
 5. `[degradation]` — Fallback behavior when all health checks fail
@@ -18,10 +18,15 @@ The configuration file `navigator.toml` is organized into these sections:
 8. `[routing.contextual]` — Context-aware routing groups
 9. `[health_checks]` — Server monitoring configuration
 10. `[update_checker]` — Update check settings
-11. `[metrics]` — bStats integration
-12. `[debug]` — Verbose logging
+11. `[startup]` — First-run welcome and upgrades digest
+12. `[bedrock]` — Bedrock/Geyser player support
+13. `[lobby]` — Empty lobby fallback strategy
+14. `[metrics]` — bStats integration
+15. `[debug]` — Verbose logging
 
 Top-level: `notify_on_startup`, `notify_admins_on_join`
+
+> **New in v4.1**: Legacy color conversion (`messages.formatting`), dashboard status colors (`messages.dashboard_*`), first-run welcome (`[startup]`), Bedrock/Geyser (`[bedrock]`), empty lobby strategy (`[lobby]`), and Levenshtein config validation.
 
 ---
 
@@ -43,7 +48,7 @@ reconnect_if_same_server = false
 |---------|------|---------|-------------|
 | `primary` | string | `"lobby"` | The main command players type (e.g. `/lobby`). |
 | `aliases` | string[] | `["hub", "spawn"]` | Alternative commands that map to the primary. |
-| `permission` | string | `"velocitynavigator.use"` | Permission required to use the lobby command. Set to `"none"` to allow all players. |
+| `permission` | string | `"none"` | Permission required to use the lobby command. Set to `"none"` to allow all players. **Default changed from `"velocitynavigator.use"` to `"none"` in v4.1.0.** |
 | `admin_aliases` | string[] | `["velocitynavigator", "vn"]` | Aliases for the admin command. |
 | `cooldown_seconds` | int | `3` | Anti-spam cooldown in seconds between lobby commands. |
 | `reconnect_if_same_server` | boolean | `false` | Whether to reconnect a player even if they're already on the selected lobby. |
@@ -64,6 +69,11 @@ cooldown = "<yellow>Please wait <time> more second(s).</yellow>"
 reloadSuccess = "<green>VelocityNavigator reloaded.</green>"
 reloadFailed = "<red>Reload failed. Check console for details.</red>"
 retrying = "<yellow>Retrying connection... (<attempt>/<max>)</yellow>"
+formatting = "auto"
+dashboard_healthy = "<green>"
+dashboard_draining = "<yellow>"
+dashboard_open = "<red>"
+dashboard_offline = "<gray>"
 ```
 
 | Setting | Type | Default | Placeholders | Description |
@@ -73,8 +83,13 @@ retrying = "<yellow>Retrying connection... (<attempt>/<max>)</yellow>"
 | `alreadyConnected` | string | `"<yellow>You are already connected to <server>.</yellow>"` | `<server>`, `<player>` | Shown when player is already on the selected lobby. |
 | `connecting` | string | `"<aqua>Sending you to <server>...</aqua>"` | `<player>`, `<server>` | Shown while connecting. |
 | `retrying` | string | `"<yellow>Retrying connection... (<attempt>/<max>)</yellow>"` | `<attempt>`, `<max>`, `<player>`, `<server>` | Shown on each retry attempt. **New in v4.** |
+| `formatting` | string | `"auto"` | — | Color format mode: `"auto"` (detect + one-time warning), `"minimessage"` (passthrough), `"legacy"` (always convert). **New in v4.1.** |
+| `dashboard_healthy` | string | `"<green>"` | — | MiniMessage tag for HEALTHY status in `/vn servers`. Supports hex/RGB. **New in v4.1.** |
+| `dashboard_draining` | string | `"<yellow>"` | — | MiniMessage tag for DRAINED status in `/vn servers`. **New in v4.1.** |
+| `dashboard_open` | string | `"<red>"` | — | MiniMessage tag for CB_OPEN status in `/vn servers`. **New in v4.1.** |
+| `dashboard_offline` | string | `"<gray>"` | — | MiniMessage tag for OFFLINE status in `/vn servers`. **New in v4.1.** |
 
-> **Available placeholders in v4**: `<server>`, `<time>`, `<reason>`, `<mode>`, `<player>`, `<attempt>`, `<max>`. Not all placeholders are available in every message — see the table above for which ones apply to each message.
+> **Available placeholders in v4.1**: `<server>`, `<time>`, `<reason>`, `<mode>`, `<player>`, `<attempt>`, `<max>`. Not all placeholders are available in every message — see the table above for which ones apply to each message.
 
 ---
 
@@ -188,7 +203,7 @@ mode = "random"
 
 ## `[routing.affinity]`
 
-Player affinity (sticky sessions) ensures players preferentially return to the same lobby they were last connected to during their proxy session. In v4.0.0, this is fully configurable under the `[routing.affinity]` TOML section.
+Player affinity (sticky sessions) ensures players preferentially return to the same lobby they were last connected to during their proxy session. In v4.1.0, this is fully configurable under the `[routing.affinity]` TOML section.
 
 ```toml
 [routing.affinity]
@@ -212,7 +227,7 @@ stickiness = 0.7
 
 ## `[geo_routing]`
 
-> ⚠️ **Experimental** — This feature is a stub in v4.0.0 and requires a GeoLite2 database to function. Without the database, geo-routing is silently skipped.
+> ⚠️ **Experimental** — This feature is a stub in v4.1.0 and requires a GeoLite2 database to function. Without the database, geo-routing is silently skipped.
 
 Geo-based routing sends players to lobbies closest to their geographic location.
 
@@ -339,6 +354,63 @@ channel = "release"
 
 ---
 
+## `[startup]` — First-Run Experience
+
+> **New in v4.1.0** — Controls the welcome dashboard and upgrade digest shown in console on plugin start.
+
+```toml
+[startup]
+welcome_enabled = true
+wiki_url = "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `welcome_enabled` | boolean | `true` | Show the "Getting Started" dashboard on fresh install and release notes digest on upgrades. |
+| `wiki_url` | string | `"https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"` | URL used for wiki anchor links in self-documenting config comments and welcome messages. |
+
+---
+
+## `[bedrock]` — Bedrock/Geyser Support
+
+> **New in v4.1.0** — Configure Bedrock player routing support via Geyser and Floodgate.
+
+```toml
+[bedrock]
+enabled = false
+auto_detect = true
+strip_advanced_formatting = true
+affinity_use_java_uuid = true
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable Bedrock/Geyser support manually. |
+| `auto_detect` | boolean | `true` | Auto-detect Geyser/Floodgate on the classpath to enable automatically. |
+| `strip_advanced_formatting` | boolean | `true` | Strip gradients, hover actions, and click events from messages for clean Bedrock display. |
+| `affinity_use_java_uuid` | boolean | `true` | Use Floodgate-mapped Java UUIDs instead of Bedrock XUIDs for player affinity tracking. |
+
+---
+
+## `[lobby]` — Empty Lobby Strategy
+
+> **New in v4.1.0** — Configures behavior when no lobby servers are available for routing.
+
+```toml
+[lobby]
+no_server_strategy = "disconnect"
+no_server_message = "<red>No lobby servers are currently available. Please try again later.</red>"
+fallback_server = ""
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `no_server_strategy` | string | `"disconnect"` | Strategy when no lobbies are online: `"disconnect"` (show message and disconnect) or `"fallback_server"` (route to a specific fallback server). |
+| `no_server_message` | string | `"<red>No lobby servers are currently available...</red>"` | The disconnect message shown when using the `"disconnect"` strategy. |
+| `fallback_server` | string | `""` | Server name to route to when using the `"fallback_server"` strategy. |
+
+---
+
 ## `[debug]` and Top-Level Settings
 
 ```toml
@@ -360,7 +432,7 @@ verbose_logging = false
 ## Full Example Config
 
 ```toml
-# VelocityNavigator v4.0.0 Configuration
+# VelocityNavigator v4.1.0 Configuration
 # https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki
 
 notify_on_startup = true
@@ -369,7 +441,7 @@ notify_admins_on_join = true
 [commands]
 primary = "lobby"
 aliases = ["hub", "spawn"]
-permission = "velocitynavigator.use"
+permission = "none"
 admin_aliases = ["velocitynavigator", "vn"]
 cooldown_seconds = 3
 reconnect_if_same_server = false
@@ -419,9 +491,17 @@ cooldown = "<yellow>Please wait <time> more second(s).</yellow>"
 reloadSuccess = "<green>VelocityNavigator reloaded.</green>"
 reloadFailed = "<red>Reload failed. Check console for details.</red>"
 retrying = "<yellow>Retrying connection... (<attempt>/<max>)</yellow>"
+formatting = "auto"
+dashboard_healthy = "<green>"
+dashboard_draining = "<yellow>"
+dashboard_open = "<red>"
+dashboard_offline = "<gray>"
 
 [update_checker]
+enabled = true
 channel = "release"
+check_interval = 60
+notify_admins = true
 
 [metrics]
 enabled = true
@@ -439,6 +519,21 @@ mode = "random"
 [geo_routing]
 enabled = false
 database_path = ""
+
+[startup]
+welcome_enabled = true
+wiki_url = "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"
+
+[bedrock]
+enabled = false
+auto_detect = true
+strip_advanced_formatting = true
+affinity_use_java_uuid = true
+
+[lobby]
+no_server_strategy = "disconnect"
+no_server_message = "<red>No lobby servers are currently available. Please try again later.</red>"
+fallback_server = ""
 
 [debug]
 verbose_logging = false

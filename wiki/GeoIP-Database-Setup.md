@@ -145,7 +145,7 @@ You can also check the proxy console for any GeoIP-related errors on startup or 
 
 **Symptom**: Players are not being routed to geographically closer servers.
 
-**Cause**: Geo-routing is **experimental** in v4.0.0. The stub implementation may return empty results.
+**Cause**: Geo-routing is **experimental** in v4.1.0. The stub implementation may return empty results.
 
 **Fix**: This feature is under active development. Check for updates in future releases.
 

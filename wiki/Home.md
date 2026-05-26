@@ -4,7 +4,7 @@
 
 # VelocityNavigator
 
-> `v4.0.0` &nbsp;·&nbsp; Velocity 3.x &nbsp;·&nbsp; Java 17+
+> `v4.1.0` &nbsp;·&nbsp; Velocity 3.x &nbsp;·&nbsp; Java 17+
 
 **VelocityNavigator** is an intelligent lobby routing plugin for Velocity proxies. It distributes players across your lobby servers using real-time load balancing — so no single server bears the entire load. With seven selection algorithms, circuit breaker protection, player affinity, and contextual routing, it handles everything from a two-server hobby network to a hundred-node infrastructure without breaking a sweat.
 
