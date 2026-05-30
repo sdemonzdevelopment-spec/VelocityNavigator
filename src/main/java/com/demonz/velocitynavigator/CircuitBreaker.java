@@ -1,6 +1,23 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,9 +26,10 @@ public final class CircuitBreaker {
 
     public enum State { CLOSED, OPEN, HALF_OPEN }
 
-    private record BreakerState(State state, int failureCount, Instant openSince, int halfOpenTests) {}
+    private record BreakerState(State state, int failureCount, Instant openSince, int halfOpenTests, int halfOpenSuccesses) {}
 
     private final ConcurrentMap<String, BreakerState> states = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, java.util.concurrent.atomic.AtomicLong> tripCounts = new ConcurrentHashMap<>();
     private final int failureThreshold;
     private final int cooldownSeconds;
     private final int halfOpenMaxTests;
@@ -27,7 +45,8 @@ public final class CircuitBreaker {
      * Uses compute() to prevent check-then-act race conditions under concurrent access.
      */
     public boolean isAvailable(String serverName) {
-        BreakerState state = states.get(serverName);
+        String normalizedServerName = normalize(serverName);
+        BreakerState state = states.get(normalizedServerName);
         if (state == null) {
             return true;
         }
@@ -36,11 +55,11 @@ public final class CircuitBreaker {
             case OPEN -> {
                 // Atomically transition OPEN → HALF_OPEN if cooldown has elapsed
                 AtomicBoolean available = new AtomicBoolean(false);
-                states.compute(serverName, (key, current) -> {
+                states.compute(normalizedServerName, (key, current) -> {
                     if (current != null && current.state == State.OPEN
                             && Instant.now().isAfter(current.openSince.plusSeconds(cooldownSeconds))) {
                         available.set(true);
-                        return new BreakerState(State.HALF_OPEN, current.failureCount, current.openSince, 0);
+                        return new BreakerState(State.HALF_OPEN, current.failureCount, current.openSince, 1, 0);
                     }
                     return current;
                 });
@@ -49,12 +68,12 @@ public final class CircuitBreaker {
             case HALF_OPEN -> {
                 // Atomically increment halfOpenTests — enforces the halfOpenMaxTests limit
                 AtomicBoolean available = new AtomicBoolean(false);
-                states.compute(serverName, (key, current) -> {
+                states.compute(normalizedServerName, (key, current) -> {
                     if (current != null && current.state == State.HALF_OPEN
                             && current.halfOpenTests < halfOpenMaxTests) {
                         available.set(true);
                         return new BreakerState(State.HALF_OPEN, current.failureCount,
-                                current.openSince, current.halfOpenTests + 1);
+                                current.openSince, current.halfOpenTests + 1, current.halfOpenSuccesses);
                     }
                     return current;
                 });
@@ -64,33 +83,50 @@ public final class CircuitBreaker {
     }
 
     /**
-     * Records a successful connection. Only resets state if not already CLOSED,
-     * to avoid resetting failure counts on periodic health checks in CLOSED state.
+     * Records a successful connection and clears prior failure history so the
+     * threshold represents consecutive failures.
      */
     public void recordSuccess(String serverName) {
-        states.compute(serverName, (key, current) -> {
-            if (current != null && current.state != State.CLOSED) {
-                return new BreakerState(State.CLOSED, 0, null, 0);
+        String normalizedServerName = normalize(serverName);
+        states.compute(normalizedServerName, (key, current) -> {
+            if (current == null) {
+                return null;
             }
-            return current; // In CLOSED state, don't touch the failure count
+            return switch (current.state) {
+                case CLOSED -> new BreakerState(State.CLOSED, 0, null, 0, 0);
+                case OPEN -> current;
+                case HALF_OPEN -> {
+                    int successes = current.halfOpenSuccesses + 1;
+                    if (successes >= halfOpenMaxTests) {
+                        yield new BreakerState(State.CLOSED, 0, null, 0, 0);
+                    }
+                    yield new BreakerState(State.HALF_OPEN, current.failureCount,
+                            current.openSince, current.halfOpenTests, successes);
+                }
+            };
         });
     }
 
     public void recordFailure(String serverName) {
-        states.compute(serverName, (key, current) -> {
+        String normalizedServerName = normalize(serverName);
+        states.compute(normalizedServerName, (key, current) -> {
             if (current == null) {
-                current = new BreakerState(State.CLOSED, 0, null, 0);
+                current = new BreakerState(State.CLOSED, 0, null, 0, 0);
             }
             return switch (current.state) {
                 case CLOSED -> {
                     int newCount = current.failureCount + 1;
                     if (newCount >= failureThreshold) {
-                        yield new BreakerState(State.OPEN, newCount, Instant.now(), 0);
+                        tripCounts.computeIfAbsent(normalizedServerName, k -> new java.util.concurrent.atomic.AtomicLong(0)).incrementAndGet();
+                        yield new BreakerState(State.OPEN, newCount, Instant.now(), 0, 0);
                     }
-                    yield new BreakerState(State.CLOSED, newCount, current.openSince, current.halfOpenTests);
+                    yield new BreakerState(State.CLOSED, newCount, null, 0, 0);
                 }
-                case OPEN -> new BreakerState(State.OPEN, current.failureCount + 1, current.openSince, 0);
-                case HALF_OPEN -> new BreakerState(State.OPEN, current.failureCount + 1, Instant.now(), 0);
+                case OPEN -> new BreakerState(State.OPEN, current.failureCount + 1, current.openSince, 0, 0);
+                case HALF_OPEN -> {
+                    tripCounts.computeIfAbsent(normalizedServerName, k -> new java.util.concurrent.atomic.AtomicLong(0)).incrementAndGet();
+                    yield new BreakerState(State.OPEN, current.failureCount + 1, Instant.now(), 0, 0);
+                }
             };
         });
     }
@@ -100,29 +136,45 @@ public final class CircuitBreaker {
      * Uses compute() to prevent race conditions.
      */
     public State getState(String serverName) {
-        BreakerState state = states.get(serverName);
+        String normalizedServerName = normalize(serverName);
+        BreakerState state = states.get(normalizedServerName);
         if (state == null) {
             return State.CLOSED;
         }
         if (state.state == State.OPEN && Instant.now().isAfter(state.openSince.plusSeconds(cooldownSeconds))) {
-            states.compute(serverName, (key, current) -> {
+            states.compute(normalizedServerName, (key, current) -> {
                 if (current != null && current.state == State.OPEN
                         && Instant.now().isAfter(current.openSince.plusSeconds(cooldownSeconds))) {
-                    return new BreakerState(State.HALF_OPEN, current.failureCount, current.openSince, 0);
+                    return new BreakerState(State.HALF_OPEN, current.failureCount, current.openSince, 0, 0);
                 }
                 return current;
             });
         }
-        // FIX-7: Always read the current state after compute() to avoid returning stale snapshot
-        BreakerState current = states.get(serverName);
+        // Read the current state after compute() to avoid returning a stale snapshot.
+        BreakerState current = states.get(normalizedServerName);
         return current == null ? State.CLOSED : current.state;
     }
 
+    public Map<String, Long> getTripCounts() {
+        Map<String, Long> snapshot = new ConcurrentHashMap<>();
+        for (Map.Entry<String, java.util.concurrent.atomic.AtomicLong> entry : tripCounts.entrySet()) {
+            snapshot.put(entry.getKey(), entry.getValue().get());
+        }
+        return snapshot;
+    }
+
     public void reset(String serverName) {
-        states.remove(serverName);
+        String normalizedServerName = normalize(serverName);
+        states.remove(normalizedServerName);
+        tripCounts.remove(normalizedServerName);
     }
 
     public void resetAll() {
         states.clear();
+        tripCounts.clear();
+    }
+
+    private String normalize(String serverName) {
+        return serverName == null ? "" : serverName.toLowerCase(Locale.ROOT);
     }
 }

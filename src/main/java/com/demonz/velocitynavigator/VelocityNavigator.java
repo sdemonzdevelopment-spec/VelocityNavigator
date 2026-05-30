@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import com.google.inject.Inject;
@@ -26,17 +41,20 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 @Plugin(
         id = "velocitynavigator",
         name = "VelocityNavigator",
-        version = "4.1.0",
+        version = "4.2.0",
         description = "Premium lobby navigation and diagnostics for Velocity proxies.",
         authors = {"DemonZDevelopment"}
 )
@@ -51,8 +69,11 @@ public final class VelocityNavigator implements NavigatorAPI {
     private final RouteSelectionStrategy selectionStrategy = new RouteSelectionStrategy();
     private final RoutingStats routingStats = new RoutingStats();
     private final DrainService drainService = new DrainService();
+    private final java.util.concurrent.atomic.AtomicLong playerJoins = new java.util.concurrent.atomic.AtomicLong(0);
+    private final java.util.concurrent.atomic.AtomicLong playerLeaves = new java.util.concurrent.atomic.AtomicLong(0);
 
     private final Set<String> registeredCommands = new LinkedHashSet<>();
+    private final ConcurrentMap<UUID, MenuSession> menuSessions = new ConcurrentHashMap<>();
 
     private ConfigManager configManager;
     private ServerHealthService healthService;
@@ -67,13 +88,13 @@ public final class VelocityNavigator implements NavigatorAPI {
     private ConnectionRateTracker rateTracker;
     private GeoRoutingService geoRoutingService;
     private BedrockHandler bedrockHandler;
+    private PrometheusExporter prometheusExporter;
 
     private volatile Config config;
     private volatile Config previousConfig;
     private ScheduledTask cacheWarmTask;
     private ScheduledTask purgeTask;
     private ScheduledTask startupUpdateTask;
-    private ScheduledTask statsResetTask;
 
     @Inject
     public VelocityNavigator(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory, Metrics.Factory metricsFactory) {
@@ -94,6 +115,7 @@ public final class VelocityNavigator implements NavigatorAPI {
             this.routePlanner = new RoutePlanner(selectionStrategy);
             this.lobbyRouter = new LobbyRouter(healthService, routePlanner);
             this.updateChecker = new UpdateChecker(logger, pluginVersion);
+            this.prometheusExporter = new PrometheusExporter(this);
 
             ConfigLoadResult loadResult = configManager.load();
             applyLoadedConfiguration(loadResult);
@@ -114,19 +136,15 @@ public final class VelocityNavigator implements NavigatorAPI {
                 this.metricsService.configure(this, config);
             }
 
-            // AC-01: Schedule background cache warming task
             scheduleCacheWarming();
 
-            // AC-03: Schedule cache purge every 60 seconds
             scheduleCachePurge();
-
-            // Schedule stats reset every 60 seconds
-            scheduleStatsReset();
 
             NavigatorAPIProvider.set(this);
 
             long startupMillis = System.currentTimeMillis() - startedAt;
             logger.info("VelocityNavigator v{} enabled in {}ms.", pluginVersion, startupMillis);
+            logger.info("[VelocityNavigator] We would love to hear your feedback! Join our Discord: https://discord.gg/demonz");
         } catch (IOException exception) {
             logger.error("VelocityNavigator could not start because navigator.toml could not be loaded.", exception);
         } catch (Exception exception) {
@@ -143,32 +161,21 @@ public final class VelocityNavigator implements NavigatorAPI {
         if (purgeTask != null) {
             purgeTask.cancel();
         }
-        if (statsResetTask != null) {
-            statsResetTask.cancel();
-        }
-        // FIX-11: Cancel startup update check if still pending
         if (startupUpdateTask != null) {
             startupUpdateTask.cancel();
         }
         if (healthService != null) {
             healthService.clearCache();
         }
+        if (prometheusExporter != null) {
+            prometheusExporter.stop();
+        }
     }
 
-    /**
-     * FIX-4: Clean up player affinity on disconnect to prevent memory leaks.
-     */
     @Subscribe
     public void onPlayerDisconnect(DisconnectEvent event) {
-        if (affinityService != null) {
-            UUID affinityUuid = event.getPlayer().getUniqueId();
-            if (bedrockHandler != null && bedrockHandler.isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
-                if (bedrockHandler.isBedrockPlayer(event.getPlayer(), config)) {
-                    affinityUuid = FloodgateIntegration.getJavaUUID(event.getPlayer());
-                }
-            }
-            affinityService.removeAffinity(affinityUuid);
-        }
+        playerLeaves.incrementAndGet();
+        menuSessions.remove(event.getPlayer().getUniqueId());
     }
 
     @Subscribe
@@ -177,32 +184,40 @@ public final class VelocityNavigator implements NavigatorAPI {
             return;
         }
 
-        // AC-01: Use cached health data instead of blocking .join()
-        Map<String, Integer> cachedServers = healthService.getCachedOnlineServers();
-        if (!cachedServers.isEmpty()) {
-            UUID affinityUuid = event.getPlayer().getUniqueId();
-            if (bedrockHandler != null && bedrockHandler.isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
-                if (bedrockHandler.isBedrockPlayer(event.getPlayer(), config)) {
-                    affinityUuid = FloodgateIntegration.getJavaUUID(event.getPlayer());
-                }
-            }
-            RouteDecision decision = routePlanner.plan("", config, cachedServers, affinityUuid);
-            if (decision.hasSelection()) {
-                server.getServer(decision.selectedServer()).ifPresent(target -> {
-                    event.setInitialServer(target);
-                    if (config.debug().verboseLogging()) {
-                        logger.info("[VelocityNavigator] Balanced initial join for {} -> {}",
-                                event.getPlayer().getUsername(), decision.selectedServer());
-                    }
-                });
+        Map<String, Integer> routeableServers = healthService.getCachedOnlineServers();
+        if (routeableServers.isEmpty()) {
+            routeableServers = healthService.getRegisteredOnlineServers(configuredLobbyServerNames(config));
+        }
+
+        UUID affinityUuid = event.getPlayer().getUniqueId();
+        if (bedrockHandler != null && bedrockHandler.isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
+            if (bedrockHandler.isBedrockPlayer(event.getPlayer(), config)) {
+                affinityUuid = FloodgateIntegration.getJavaUUID(event.getPlayer());
             }
         }
-        // If cache is empty (cold start), fall through to Velocity's built-in try list
+        RouteDecision decision = routePlanner.plan("", config, routeableServers, affinityUuid);
+        if (!decision.hasSelection()) {
+            disconnectInitialJoin(event, decision);
+            return;
+        }
+
+        server.getServer(decision.selectedServer()).ifPresentOrElse(target -> {
+            event.setInitialServer(target);
+            routingStats.recordRedirect("initial_join", decision.selectedServer());
+            if (rateTracker != null) {
+                rateTracker.recordConnection(decision.selectedServer());
+            }
+            if (config.debug().verboseLogging()) {
+                logger.info("[VelocityNavigator] Balanced initial join for {} -> {}",
+                        event.getPlayer().getUsername(), decision.selectedServer());
+            }
+        }, () -> disconnectInitialJoin(event, decision));
     }
 
     @Subscribe
     public void onPostLogin(PostLoginEvent event) {
-        if (config == null || updateChecker == null || !config.notifyAdminsOnJoin()) {
+        playerJoins.incrementAndGet();
+        if (config == null || updateChecker == null || !config.notifyAdminsOnJoin() || !config.updateChecker().notifyAdmins()) {
             return;
         }
         if (!event.getPlayer().hasPermission("velocitynavigator.admin")) {
@@ -252,11 +267,16 @@ public final class VelocityNavigator implements NavigatorAPI {
         if (circuitBreaker != null) {
             healthService.setCircuitBreaker(circuitBreaker);
         }
-        // FIX-1: Re-wire load tracker into health service after config reload
         if (loadTracker != null) {
             healthService.setLoadTracker(loadTracker);
         }
+        scheduleCacheWarming();
+        scheduleCachePurge();
         return loadResult;
+    }
+
+    public java.nio.file.Path getDataDirectory() {
+        return dataDirectory;
     }
 
     public ProxyServer server() {
@@ -315,6 +335,44 @@ public final class VelocityNavigator implements NavigatorAPI {
         return healthService;
     }
 
+    public String createMenuToken(Player player, List<String> serverNames) {
+        Set<String> allowedServers = new LinkedHashSet<>();
+        if (serverNames != null) {
+            for (String serverName : serverNames) {
+                if (serverName != null && !serverName.isBlank()) {
+                    allowedServers.add(serverName.toLowerCase(java.util.Locale.ROOT));
+                }
+            }
+        }
+        String token = UUID.randomUUID().toString().replace("-", "");
+        menuSessions.put(player.getUniqueId(), new MenuSession(token, Set.copyOf(allowedServers), Instant.now().plusSeconds(60)));
+        return token;
+    }
+
+    public boolean consumeMenuToken(Player player, String targetServer, String token) {
+        if (player == null || targetServer == null || token == null || token.isBlank()) {
+            return false;
+        }
+        UUID playerId = player.getUniqueId();
+        String normalizedTarget = targetServer.toLowerCase(Locale.ROOT);
+        java.util.concurrent.atomic.AtomicBoolean consumed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        menuSessions.compute(playerId, (id, session) -> {
+            if (session == null) {
+                return null;
+            }
+            Instant now = Instant.now();
+            if (now.isAfter(session.expiresAt())) {
+                return null;
+            }
+            if (!session.token().equals(token) || !session.allowedServers().contains(normalizedTarget)) {
+                return session;
+            }
+            consumed.set(true);
+            return null;
+        });
+        return consumed.get();
+    }
+
     public CompletableFuture<RouteDecision> previewRoute(Player player) {
         return lobbyRouter.preview(player, config);
     }
@@ -340,8 +398,10 @@ public final class VelocityNavigator implements NavigatorAPI {
 
     @Override
     public Map<String, Long> getHealthCheckLatencies() {
-        // Placeholder — would need latency tracking in ServerHealthService
-        return Map.of();
+        if (healthService == null) {
+            return Map.of();
+        }
+        return healthService.getLatencies();
     }
 
     @Override
@@ -357,6 +417,14 @@ public final class VelocityNavigator implements NavigatorAPI {
         return statuses;
     }
 
+    public long getPlayerJoins() {
+        return playerJoins.get();
+    }
+
+    public long getPlayerLeaves() {
+        return playerLeaves.get();
+    }
+
     public Component buildHelpComponent() {
         return MessageFormatter.render("""
                 <gradient:#8EF7FF:#D9F7FF><bold>VelocityNavigator Admin</bold></gradient>
@@ -370,6 +438,7 @@ public final class VelocityNavigator implements NavigatorAPI {
                 <gray>/velocitynavigator undrain &lt;server&gt;</gray> <white>Undrain a server (resume routing)</white>
                 <gray>/velocitynavigator drain status</gray> <white>Show drained servers</white>
                 <gray>/velocitynavigator servers</gray> <white>Show all lobby server statuses</white>
+                <gray>/velocitynavigator setup grafana</gray> <white>Generate the Grafana diagnostics dashboard</white>
                 """);
     }
 
@@ -519,7 +588,6 @@ public final class VelocityNavigator implements NavigatorAPI {
         this.config = loadResult.config();
         configManager.logWarnings(loadResult);
 
-        // AC-02: Only reset round-robin when lobby topology changed
         if (previousConfig != null && lobbyTopologyUnchanged(previousConfig, config)) {
             // Lobby topology didn't change, keep round-robin state
         } else {
@@ -570,12 +638,16 @@ public final class VelocityNavigator implements NavigatorAPI {
         if (this.rateTracker == null) {
             this.rateTracker = new ConnectionRateTracker(60);
         }
+        this.rateTracker.retainServers(configuredLobbyServerNames(config));
 
         // Initialize geo routing service (stub)
         this.geoRoutingService = new GeoRoutingService(
                 config.geoRouting().enabled(),
                 config.geoRouting().databasePath()
         );
+        if (config.geoRouting().enabled()) {
+            logger.warn("[VelocityNavigator] geo_routing.enabled is true, but geo routing is not implemented in this build. Location data will not affect routing.");
+        }
 
         // Wire services into route planner and health service
         if (routePlanner != null) {
@@ -585,6 +657,7 @@ public final class VelocityNavigator implements NavigatorAPI {
             routePlanner.setHashRing(hashRing);
             routePlanner.setAffinityService(affinityService);
             routePlanner.setRateTracker(rateTracker);
+            routePlanner.setHealthService(healthService);
         }
         if (healthService != null) {
             healthService.setCircuitBreaker(circuitBreaker);
@@ -592,6 +665,9 @@ public final class VelocityNavigator implements NavigatorAPI {
         }
 
         registerCommands();
+        if (prometheusExporter != null) {
+            prometheusExporter.start(config.metrics().prometheus());
+        }
         schedulePeriodicUpdateCheck();
     }
 
@@ -634,6 +710,64 @@ public final class VelocityNavigator implements NavigatorAPI {
         return names;
     }
 
+    private Set<String> configuredLobbyServerNames(Config currentConfig) {
+        Set<String> names = new LinkedHashSet<>();
+        if (currentConfig == null || currentConfig.routing() == null) {
+            return names;
+        }
+        addLobbyNames(names, currentConfig.routing().defaultLobbies());
+        if (currentConfig.lobbyFallback() != null
+                && "fallback_server".equalsIgnoreCase(currentConfig.lobbyFallback().noServerStrategy())
+                && !currentConfig.lobbyFallback().fallbackServer().isBlank()) {
+            names.add(currentConfig.lobbyFallback().fallbackServer());
+        }
+        Config.Contextual contextual = currentConfig.routing().contextual();
+        if (contextual != null && contextual.groups() != null) {
+            for (Config.GroupConfig groupConfig : contextual.groups().values()) {
+                if (groupConfig != null) {
+                    addLobbyNames(names, groupConfig.servers());
+                }
+            }
+        }
+        return names;
+    }
+
+    private void addLobbyNames(Set<String> names, List<Config.LobbyEntry> entries) {
+        if (entries == null) {
+            return;
+        }
+        for (Config.LobbyEntry entry : entries) {
+            if (entry != null && entry.server() != null && !entry.server().isBlank()) {
+                names.add(entry.server());
+            }
+        }
+    }
+
+    private void disconnectInitialJoin(PlayerChooseInitialServerEvent event, RouteDecision decision) {
+        String reason = decision == null || decision.reason() == null || decision.reason().isBlank()
+                ? "No lobby servers are currently available."
+                : decision.reason();
+        String mode = decision == null || decision.selectionMode() == null
+                ? config.routing().selectionMode().configValue()
+                : decision.selectionMode().configValue();
+        String message = config.lobbyFallback() == null
+                ? config.messages().noLobbyFound()
+                : config.lobbyFallback().noServerMessage();
+        event.getPlayer().disconnect(MessageFormatter.render(
+                message,
+                Map.of(
+                        "reason", reason,
+                        "mode", mode,
+                        "player", event.getPlayer().getUsername()
+                ),
+                event.getPlayer()
+        ));
+        if (config.debug().verboseLogging()) {
+            logger.info("[VelocityNavigator] Initial join for {} denied: {}",
+                    event.getPlayer().getUsername(), reason);
+        }
+    }
+
     private synchronized void registerCommands() {
         CommandManager commandManager = server.getCommandManager();
         unregisterCommands(commandManager);
@@ -671,9 +805,6 @@ public final class VelocityNavigator implements NavigatorAPI {
         registeredCommands.clear();
     }
 
-    /**
-     * AC-01: Schedule background cache warming task.
-     */
     private void scheduleCacheWarming() {
         if (cacheWarmTask != null) {
             cacheWarmTask.cancel();
@@ -683,26 +814,29 @@ public final class VelocityNavigator implements NavigatorAPI {
             return; // Caching is disabled, no warming needed
         }
         int intervalSeconds = Math.max(5, config.healthChecks().cacheSeconds());
+        warmHealthCache();
         cacheWarmTask = server.getScheduler()
-                .buildTask(this, () -> {
-                    try {
-                        lobbyRouter.preview("", config).thenAccept(decision -> {
-                            if (config.debug().verboseLogging() && decision.hasSelection()) {
-                                logger.debug("[VelocityNavigator] Cache warming: selected {}", decision.selectedServer());
-                            }
-                        });
-                    } catch (Exception e) {
-                        logger.debug("[VelocityNavigator] Cache warming failed: {}", e.getMessage());
-                    }
-                })
+                .buildTask(this, this::warmHealthCache)
                 .delay(intervalSeconds, TimeUnit.SECONDS)
                 .repeat(intervalSeconds, TimeUnit.SECONDS)
                 .schedule();
     }
 
-    /**
-     * AC-03: Schedule cache purge every 60 seconds.
-     */
+    private void warmHealthCache() {
+        try {
+            lobbyRouter.preview("", config).thenAccept(decision -> {
+                if (config.debug().verboseLogging() && decision.hasSelection()) {
+                    logger.debug("[VelocityNavigator] Cache warming: selected {}", decision.selectedServer());
+                }
+            }).exceptionally(throwable -> {
+                logger.debug("[VelocityNavigator] Cache warming failed: {}", throwable.getMessage());
+                return null;
+            });
+        } catch (Exception e) {
+            logger.debug("[VelocityNavigator] Cache warming failed: {}", e.getMessage());
+        }
+    }
+
     private void scheduleCachePurge() {
         if (purgeTask != null) {
             purgeTask.cancel();
@@ -711,21 +845,14 @@ public final class VelocityNavigator implements NavigatorAPI {
                 .buildTask(this, () -> {
                     Duration ttl = Duration.ofSeconds(Math.max(300, config.healthChecks().cacheSeconds() * 5));
                     healthService.purgeExpiredCache(ttl);
+                    if (affinityService != null) {
+                        affinityService.purgeExpired();
+                    }
+                    if (rateTracker != null) {
+                        rateTracker.retainServers(configuredLobbyServerNames(config));
+                        rateTracker.purge();
+                    }
                 })
-                .delay(60, TimeUnit.SECONDS)
-                .repeat(60, TimeUnit.SECONDS)
-                .schedule();
-    }
-
-    /**
-     * Schedule stats reset every 60 seconds.
-     */
-    private void scheduleStatsReset() {
-        if (statsResetTask != null) {
-            statsResetTask.cancel();
-        }
-        statsResetTask = server.getScheduler()
-                .buildTask(this, routingStats::reset)
                 .delay(60, TimeUnit.SECONDS)
                 .repeat(60, TimeUnit.SECONDS)
                 .schedule();
@@ -745,12 +872,16 @@ public final class VelocityNavigator implements NavigatorAPI {
             return;
         }
         int intervalMinutes = Math.max(30, config.updateChecker().checkIntervalMinutes());
-        this.startupUpdateTask = server.getScheduler()
+        var taskBuilder = server.getScheduler()
                 .buildTask(this, () -> {
                     updateChecker.checkAsync(config.updateChecker());
                 })
-                .delay(5, TimeUnit.SECONDS)
-                .repeat(intervalMinutes, TimeUnit.MINUTES)
-                .schedule();
+                .repeat(intervalMinutes, TimeUnit.MINUTES);
+        this.startupUpdateTask = config.notifyOnStartup()
+                ? taskBuilder.delay(5, TimeUnit.SECONDS).schedule()
+                : taskBuilder.delay(intervalMinutes, TimeUnit.MINUTES).schedule();
+    }
+
+    private record MenuSession(String token, Set<String> allowedServers, Instant expiresAt) {
     }
 }

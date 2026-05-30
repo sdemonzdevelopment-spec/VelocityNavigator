@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import org.junit.jupiter.api.Test;
@@ -33,6 +48,28 @@ class RoutePlannerTest {
                 d.geoRouting(),
                 d.notifyOnStartup(),
                 d.notifyAdminsOnJoin()
+        );
+    }
+
+    private static Config baseConfig(Config.Routing routing, Config.LobbyFallbackSettings lobbyFallback) {
+        Config d = Config.defaults();
+        return new Config(
+                Config.CURRENT_VERSION,
+                d.commands(),
+                routing,
+                d.healthChecks(),
+                d.messages(),
+                d.updateChecker(),
+                d.metrics(),
+                d.debug(),
+                d.circuitBreaker(),
+                d.degradation(),
+                d.geoRouting(),
+                d.notifyOnStartup(),
+                d.notifyAdminsOnJoin(),
+                d.startup(),
+                lobbyFallback,
+                d.bedrock()
         );
     }
 
@@ -344,5 +381,59 @@ class RoutePlannerTest {
         assertTrue(decision.hasSelection());
         assertEquals("lobby-2", decision.selectedServer()); // Least players fallback
         assertTrue(decision.reason().contains("Consistent hash selection was unavailable or failed; fell back to LEAST_PLAYERS"));
+    }
+
+    @Test
+    void fallbackServerIsSelectedOnlyWhenOnline() {
+        Config config = baseConfig(new Config.Routing(
+                Config.SelectionMode.LEAST_PLAYERS,
+                false,
+                true,
+                List.of(new Config.LobbyEntry("lobby-1", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)),
+                defaultRouting().contextual(),
+                2,
+                null
+        ), new Config.LobbyFallbackSettings("fallback_server", "<red>No lobby available.</red>", "backup-lobby"));
+
+        RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
+        RouteDecision decision = planner.plan("", config, Map.of("backup-lobby", 0));
+
+        assertTrue(decision.hasSelection());
+        assertEquals("backup-lobby", decision.selectedServer());
+    }
+
+    @Test
+    void fallbackServerIsNotSelectedWhenUnavailable() {
+        Config config = baseConfig(new Config.Routing(
+                Config.SelectionMode.LEAST_PLAYERS,
+                false,
+                true,
+                List.of(new Config.LobbyEntry("lobby-1", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)),
+                defaultRouting().contextual(),
+                2,
+                null
+        ), new Config.LobbyFallbackSettings("fallback_server", "<red>No lobby available.</red>", "backup-lobby"));
+
+        RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
+        RouteDecision decision = planner.plan("", config, Map.of());
+
+        assertFalse(decision.hasSelection());
+    }
+
+    @Test
+    void fallbackServerIsIncludedInInspectionTargets() {
+        Config config = baseConfig(new Config.Routing(
+                Config.SelectionMode.LEAST_PLAYERS,
+                false,
+                true,
+                List.of(new Config.LobbyEntry("lobby-1", Config.LobbyEntry.UNCAPPED, Config.LobbyEntry.DEFAULT_WEIGHT)),
+                defaultRouting().contextual(),
+                2,
+                null
+        ), new Config.LobbyFallbackSettings("fallback_server", "<red>No lobby available.</red>", "backup-lobby"));
+
+        RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
+
+        assertTrue(planner.inspectionTargets("", config).contains("backup-lobby"));
     }
 }

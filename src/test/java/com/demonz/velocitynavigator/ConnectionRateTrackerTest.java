@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import org.junit.jupiter.api.Test;
@@ -64,5 +79,40 @@ class ConnectionRateTrackerTest {
                 "server-1 should have more recorded connections than server-2");
         assertEquals(0, tracker.getConnectionCount("server-3"),
                 "Untracked server should have zero connections");
+    }
+
+    @Test
+    void retainServersRemovesDeletedServerEntries() {
+        ConnectionRateTracker tracker = new ConnectionRateTracker(60);
+
+        tracker.recordConnection("server-1");
+        tracker.recordConnection("server-2");
+
+        tracker.retainServers(java.util.List.of("server-2"));
+
+        assertEquals(0, tracker.getConnectionCount("server-1"));
+        assertEquals(1, tracker.getConnectionCount("server-2"));
+    }
+
+    @Test
+    void purgeRemovesExpiredEmptyEntries() throws InterruptedException {
+        ConnectionRateTracker tracker = new ConnectionRateTracker(1);
+
+        tracker.recordConnection("server-1");
+        Thread.sleep(1100);
+        tracker.purge();
+
+        assertEquals(0, tracker.getConnectionCount("server-1"));
+    }
+
+    @Test
+    void capsPerServerEntries() {
+        ConnectionRateTracker tracker = new ConnectionRateTracker(60, 3);
+
+        for (int i = 0; i < 10; i++) {
+            tracker.recordConnection("server-1");
+        }
+
+        assertEquals(3, tracker.getConnectionCount("server-1"));
     }
 }

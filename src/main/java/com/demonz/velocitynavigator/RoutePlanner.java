@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import java.util.ArrayList;
@@ -20,9 +35,14 @@ public final class RoutePlanner {
     private volatile ConsistentHashRing hashRing;
     private volatile PlayerAffinityService affinityService;
     private volatile ConnectionRateTracker rateTracker;
+    private volatile ServerHealthService healthService;
 
     public RoutePlanner(RouteSelectionStrategy selectionStrategy) {
         this.selectionStrategy = Objects.requireNonNull(selectionStrategy, "selectionStrategy");
+    }
+
+    public void setHealthService(ServerHealthService healthService) {
+        this.healthService = healthService;
     }
 
     public void setDrainService(DrainService drainService) {
@@ -52,7 +72,7 @@ public final class RoutePlanner {
     /**
      * Plan a route without a player identity.
      * <p>
-     * FIX-10: When {@code playerId} is null, player-dependent features are skipped:
+     * When {@code playerId} is null, player-dependent features are skipped:
      * <ul>
      *   <li>Player affinity (sticky sessions) is not evaluated</li>
      *   <li>Consistent hash selection falls back to the next selection strategy</li>
@@ -72,7 +92,7 @@ public final class RoutePlanner {
     /**
      * Plan a route with full player context.
      * <p>
-     * FIX-10: When {@code playerId} is null, player-dependent features are skipped:
+     * When {@code playerId} is null, player-dependent features are skipped:
      * <ul>
      *   <li>Player affinity (sticky sessions) is not evaluated</li>
      *   <li>Consistent hash selection falls back to the next selection strategy</li>
@@ -161,17 +181,17 @@ public final class RoutePlanner {
         }
 
         if (configuredEntries.isEmpty()) {
-            if (config.lobbyFallback() != null && "fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
-                    && !config.lobbyFallback().fallbackServer().isBlank()) {
+            Optional<String> fallbackServer = selectableFallbackServer(config, online);
+            if (fallbackServer.isPresent()) {
                 return new RouteDecision(
                         normalizedSource,
                         requestedGroup,
                         usedGroup,
                         lobbyEntryNames(configuredEntries),
                         onlineCandidates,
-                        config.lobbyFallback().fallbackServer(),
+                        fallbackServer.get(),
                         fallbackToDefault,
-                        "Fell back to fallback server: " + config.lobbyFallback().fallbackServer(),
+                        "Fell back to fallback server: " + fallbackServer.get(),
                         effectiveMode,
                         selectableCandidates
                 );
@@ -190,17 +210,17 @@ public final class RoutePlanner {
         }
 
         if (selectableCandidates.isEmpty()) {
-            if (config.lobbyFallback() != null && "fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
-                    && !config.lobbyFallback().fallbackServer().isBlank()) {
+            Optional<String> fallbackServer = selectableFallbackServer(config, online);
+            if (fallbackServer.isPresent()) {
                 return new RouteDecision(
                         normalizedSource,
                         requestedGroup,
                         usedGroup,
                         lobbyEntryNames(configuredEntries),
                         onlineCandidates,
-                        config.lobbyFallback().fallbackServer(),
+                        fallbackServer.get(),
                         fallbackToDefault,
-                        "Fell back to fallback server: " + config.lobbyFallback().fallbackServer(),
+                        "Fell back to fallback server: " + fallbackServer.get(),
                         effectiveMode,
                         selectableCandidates
                 );
@@ -234,7 +254,7 @@ public final class RoutePlanner {
                         onlineCandidates,
                         stickServer.get(),
                         fallbackToDefault,
-                        "",
+                        "affinity",
                         effectiveMode,
                         selectableCandidates
                 );
@@ -254,7 +274,7 @@ public final class RoutePlanner {
                         onlineCandidates,
                         selected.get(),
                         fallbackToDefault,
-                        "",
+                        "consistent_hash",
                         effectiveMode,
                         hashRing.getServerOrder(usedGroup, playerId.toString())
                 );
@@ -269,8 +289,8 @@ public final class RoutePlanner {
                 ? Config.SelectionMode.LEAST_PLAYERS
                 : effectiveMode;
         Optional<ServerCandidate> selected = selectionStrategy.select(candidates, selectMode, usedGroup);
-        String finalReason = fallbackToDefault ? reason : "";
-        if (effectiveMode == Config.SelectionMode.CONSISTENT_HASH && finalReason.isEmpty()) {
+        String finalReason = fallbackToDefault ? reason : selectMode.configValue();
+        if (effectiveMode == Config.SelectionMode.CONSISTENT_HASH) {
             finalReason = "Consistent hash selection was unavailable or failed; fell back to LEAST_PLAYERS.";
         }
         return new RouteDecision(
@@ -291,6 +311,11 @@ public final class RoutePlanner {
         Set<String> targets = new LinkedHashSet<>();
         for (Config.LobbyEntry entry : config.routing().defaultLobbies()) {
             targets.add(entry.server());
+        }
+        if (config.lobbyFallback() != null
+                && "fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
+                && !config.lobbyFallback().fallbackServer().isBlank()) {
+            targets.add(config.lobbyFallback().fallbackServer());
         }
         Config.Contextual contextual = config.routing().contextual();
         String normalized = sourceServer == null ? "" : sourceServer.toLowerCase(Locale.ROOT);
@@ -351,7 +376,34 @@ public final class RoutePlanner {
         }
         // Incorporate rate into emaLoad for LEAST_CONNECTIONS
         double combinedLoad = emaLoad + rateCost;
-        return new ServerCandidate(name, playerCount, weight, combinedLoad);
+        long latency = -1L;
+        if (healthService != null) {
+            Long tracked = healthService.getLatencies().get(name.toLowerCase(Locale.ROOT));
+            if (tracked != null) {
+                latency = tracked;
+            }
+        }
+        return new ServerCandidate(name, playerCount, weight, combinedLoad, latency);
+    }
+
+    private Optional<String> selectableFallbackServer(Config config, Map<String, Integer> onlineServers) {
+        if (config.lobbyFallback() == null
+                || !"fallback_server".equalsIgnoreCase(config.lobbyFallback().noServerStrategy())
+                || config.lobbyFallback().fallbackServer().isBlank()) {
+            return Optional.empty();
+        }
+        String fallbackServer = config.lobbyFallback().fallbackServer();
+        String normalized = fallbackServer.toLowerCase(Locale.ROOT);
+        if (!onlineServers.containsKey(normalized)) {
+            return Optional.empty();
+        }
+        if (drainService != null && drainService.isDrained(normalized)) {
+            return Optional.empty();
+        }
+        if (circuitBreaker != null && !circuitBreaker.isAvailable(normalized)) {
+            return Optional.empty();
+        }
+        return Optional.of(fallbackServer);
     }
 
     private List<String> lobbyEntryNames(List<Config.LobbyEntry> entries) {

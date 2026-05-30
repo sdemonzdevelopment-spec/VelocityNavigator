@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import org.junit.jupiter.api.Test;
@@ -23,7 +38,7 @@ class ConfigManagerTest {
         ConfigLoadResult result = manager.load();
 
         assertTrue(result.createdDefault());
-        assertEquals(5, result.config().configVersion());
+        assertEquals(Config.CURRENT_VERSION, result.config().configVersion());
         assertTrue(Files.exists(tempDir.resolve("navigator.toml")));
     }
 
@@ -93,5 +108,33 @@ class ConfigManagerTest {
         assertEquals(30, result.config().healthChecks().cacheSeconds());
         assertEquals("hub", result.config().commands().aliases().get(0));
         assertEquals(Config.defaults().routing().defaultLobbies(), result.config().routing().defaultLobbies());
+    }
+
+    @Test
+    void prometheusPortOutsideTcpRangeFallsBackToDefault() {
+        Config.PrometheusSettings tooHigh = new Config.PrometheusSettings(true, 70000, "127.0.0.1");
+        Config.PrometheusSettings negative = new Config.PrometheusSettings(true, -1, "127.0.0.1");
+
+        assertEquals(9225, tooHigh.port());
+        assertEquals(9225, negative.port());
+    }
+
+    @Test
+    void readsPrometheusBearerToken() throws Exception {
+        Path configPath = tempDir.resolve("navigator.toml");
+        Files.writeString(configPath, """
+                config_version = 6
+
+                [metrics.prometheus]
+                enabled = true
+                port = 9225
+                bind_host = "0.0.0.0"
+                bearer_token = "secret-token"
+                """);
+
+        ConfigManager manager = new ConfigManager(tempDir, LoggerFactory.getLogger("config-test"));
+        ConfigLoadResult result = manager.load();
+
+        assertEquals("secret-token", result.config().metrics().prometheus().bearerToken());
     }
 }

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import java.nio.charset.StandardCharsets;
@@ -5,9 +20,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -18,7 +35,7 @@ public final class ConsistentHashRing {
 
     private final int virtualNodes;
     private final ConcurrentMap<String, NavigableMap<Long, String>> rings = new ConcurrentHashMap<>();
-    // FIX-6: Cache the previous server list per group to avoid unnecessary ring rebuilds
+    // Cache the previous server list per group to avoid unnecessary ring rebuilds.
     private final ConcurrentMap<String, List<String>> previousServerLists = new ConcurrentHashMap<>();
 
     public ConsistentHashRing() {
@@ -30,7 +47,7 @@ public final class ConsistentHashRing {
     }
 
     public void updateRing(String groupKey, List<String> servers) {
-        // FIX-6: Skip rebuild if the server list hasn't changed
+        // Skip rebuild if the server list has not changed.
         List<String> sortedServers = new ArrayList<>(servers);
         Collections.sort(sortedServers);
         List<String> previous = previousServerLists.get(groupKey);
@@ -45,7 +62,7 @@ public final class ConsistentHashRing {
                 ring.put(hash, server);
             }
         }
-        // FIX-5: Store an immutable snapshot so concurrent reads never see a partially-built TreeMap
+        // Store an immutable snapshot so concurrent reads never see a partially-built TreeMap.
         rings.put(groupKey, Collections.unmodifiableNavigableMap(ring));
         previousServerLists.put(groupKey, sortedServers);
     }
@@ -67,19 +84,15 @@ public final class ConsistentHashRing {
             return List.of();
         }
         long hash = hash(input);
-        List<String> result = new ArrayList<>();
+        Set<String> result = new LinkedHashSet<>();
         NavigableMap<Long, String> tail = ring.tailMap(hash, true);
         for (String server : tail.values()) {
-            if (!result.contains(server)) {
-                result.add(server);
-            }
+            result.add(server);
         }
         for (String server : ring.headMap(hash, false).values()) {
-            if (!result.contains(server)) {
-                result.add(server);
-            }
+            result.add(server);
         }
-        return result;
+        return List.copyOf(result);
     }
 
     public void removeGroup(String groupKey) {

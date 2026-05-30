@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import java.util.ArrayList;
@@ -9,7 +24,7 @@ import java.util.Map;
 
 public final class Config {
 
-    public static final int CURRENT_VERSION = 5;
+    public static final int CURRENT_VERSION = 6;
 
     private final int configVersion;
     private final Commands commands;
@@ -59,7 +74,7 @@ public final class Config {
                 notifyAdminsOnJoin,
                 new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"),
                 new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", ""),
-                new BedrockSettings(false, true, true, true)
+                new BedrockSettings(false, true, true, true, true, "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>", "<gray>Select a lobby server to connect:</gray>", "<white><bold>{server}</bold></white> <gray>({players} Players)</gray>")
         );
     }
 
@@ -96,7 +111,7 @@ public final class Config {
         this.notifyAdminsOnJoin = notifyAdminsOnJoin;
         this.startup = startup == null ? new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki") : startup;
         this.lobbyFallback = lobbyFallback == null ? new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", "") : lobbyFallback;
-        this.bedrock = bedrock == null ? new BedrockSettings(false, true, true, true) : bedrock;
+        this.bedrock = bedrock == null ? new BedrockSettings(false, true, true, true, true, "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>", "<gray>Select a lobby server to connect:</gray>", "<white><bold>{server}</bold></white> <gray>({players} Players)</gray>") : bedrock;
     }
 
     public static Config defaults() {
@@ -128,7 +143,11 @@ public final class Config {
                                 Map.of()
                         ),
                         2,
-                        new AffinitySettings(true, 0.7)
+                        new AffinitySettings(true, 0.7),
+                        false,
+                        "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient> <gray>(Hover to view status, click to connect)</gray>",
+                        "  <gray>•</gray> <white><bold>{server}</bold></white> <gray>| Click to connect</gray>",
+                        "<white><bold>{server}</bold></white>\n<gray>Status:</gray> {status_color}{status}\n<gray>Players:</gray> <white>{players}/{max_players}</white>\n<gray>Ping:</gray> <white>{ping}ms</white>"
                 ),
                 new HealthChecks(true, 2500, 60),
                 new Messages(
@@ -147,7 +166,7 @@ public final class Config {
                         "<gray>"
                 ),
                 new UpdateCheckerSettings(true, UpdateChannel.RELEASE, 60, true),
-                new MetricsSettings(true),
+                new MetricsSettings(true, new PrometheusSettings(false, 9225, "127.0.0.1")),
                 new DebugSettings(false),
                 new CircuitBreakerSettings(true, 3, 30, 1),
                 new DegradationSettings(true, "random"),
@@ -156,7 +175,7 @@ public final class Config {
                 true,
                 new StartupSettings(true, "https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki"),
                 new LobbyFallbackSettings("disconnect", "<red>No lobby servers are currently available. Please try again later.</red>", ""),
-                new BedrockSettings(false, true, true, true)
+                new BedrockSettings(false, true, true, true, true, "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>", "<gray>Select a lobby server to connect:</gray>", "<white><bold>{server}</bold></white> <gray>({players} Players)</gray>")
         );
     }
 
@@ -231,7 +250,8 @@ public final class Config {
         POWER_OF_TWO,
         WEIGHTED_ROUND_ROBIN,
         LEAST_CONNECTIONS,
-        CONSISTENT_HASH;
+        CONSISTENT_HASH,
+        LATENCY;
 
         public static SelectionMode fromString(String raw) {
             if (raw == null || raw.isBlank()) {
@@ -245,6 +265,7 @@ public final class Config {
                 case "weighted_round_robin" -> WEIGHTED_ROUND_ROBIN;
                 case "least_connections" -> LEAST_CONNECTIONS;
                 case "consistent_hash" -> CONSISTENT_HASH;
+                case "latency" -> LATENCY;
                 default -> LEAST_PLAYERS;
             };
         }
@@ -355,14 +376,45 @@ public final class Config {
             List<LobbyEntry> defaultLobbies,
             Contextual contextual,
             int maxRetries,
-            AffinitySettings affinity
+            AffinitySettings affinity,
+            boolean useChatMenuForLobby,
+            String chatMenuHeader,
+            String chatMenuFormat,
+            String chatMenuTooltip
     ) {
+        public Routing(
+                SelectionMode selectionMode,
+                boolean cycleWhenPossible,
+                boolean balanceInitialJoin,
+                List<LobbyEntry> defaultLobbies,
+                Contextual contextual,
+                int maxRetries,
+                AffinitySettings affinity
+        ) {
+            this(
+                    selectionMode,
+                    cycleWhenPossible,
+                    balanceInitialJoin,
+                    defaultLobbies,
+                    contextual,
+                    maxRetries,
+                    affinity,
+                    false,
+                    null,
+                    null,
+                    null
+            );
+        }
+
         public Routing {
             selectionMode = selectionMode == null ? SelectionMode.LEAST_PLAYERS : selectionMode;
             defaultLobbies = immutableLobbyEntries(defaultLobbies);
             contextual = contextual == null ? new Contextual(false, true, Map.of(), Map.of(), Map.of()) : contextual;
             maxRetries = Math.max(0, maxRetries);
             affinity = affinity == null ? new AffinitySettings(true, 0.7) : affinity;
+            chatMenuHeader = chatMenuHeader == null || chatMenuHeader.isBlank() ? "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient> <gray>(Hover to view status, click to connect)</gray>" : chatMenuHeader;
+            chatMenuFormat = chatMenuFormat == null || chatMenuFormat.isBlank() ? "  <gray>•</gray> <white><bold>{server}</bold></white> <gray>| Click to connect</gray>" : chatMenuFormat;
+            chatMenuTooltip = chatMenuTooltip == null || chatMenuTooltip.isBlank() ? "<white><bold>{server}</bold></white>\n<gray>Status:</gray> {status_color}{status}\n<gray>Players:</gray> <white>{players}/{max_players}</white>\n<gray>Ping:</gray> <white>{ping}ms</white>" : chatMenuTooltip;
         }
     }
 
@@ -462,7 +514,22 @@ public final class Config {
         }
     }
 
-    public record MetricsSettings(boolean enabled) {
+    public record MetricsSettings(boolean enabled, PrometheusSettings prometheus) {
+        public MetricsSettings {
+            prometheus = prometheus == null ? new PrometheusSettings(false, 9225, "127.0.0.1", "") : prometheus;
+        }
+    }
+
+    public record PrometheusSettings(boolean enabled, int port, String bindHost, String bearerToken) {
+        public PrometheusSettings(boolean enabled, int port, String bindHost) {
+            this(enabled, port, bindHost, "");
+        }
+
+        public PrometheusSettings {
+            port = port <= 0 || port > 65535 ? 9225 : port;
+            bindHost = bindHost == null || bindHost.isBlank() ? "127.0.0.1" : bindHost.trim();
+            bearerToken = bearerToken == null ? "" : bearerToken.trim();
+        }
     }
 
     public record DebugSettings(boolean verboseLogging) {
@@ -508,8 +575,38 @@ public final class Config {
         }
     }
 
-    public record BedrockSettings(boolean enabled, boolean autoDetect, boolean stripAdvancedFormatting, boolean affinityUseJavaUuid) {
+    public record BedrockSettings(
+            boolean enabled,
+            boolean autoDetect,
+            boolean stripAdvancedFormatting,
+            boolean affinityUseJavaUuid,
+            boolean useGuiForLobby,
+            String guiTitle,
+            String guiContent,
+            String guiButtonFormat
+    ) {
+        public BedrockSettings(
+                boolean enabled,
+                boolean autoDetect,
+                boolean stripAdvancedFormatting,
+                boolean affinityUseJavaUuid
+        ) {
+            this(
+                    enabled,
+                    autoDetect,
+                    stripAdvancedFormatting,
+                    affinityUseJavaUuid,
+                    false,
+                    null,
+                    null,
+                    null
+            );
+        }
+
         public BedrockSettings {
+            guiTitle = guiTitle == null || guiTitle.isBlank() ? "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>" : guiTitle;
+            guiContent = guiContent == null || guiContent.isBlank() ? "<gray>Select a lobby server to connect:</gray>" : guiContent;
+            guiButtonFormat = guiButtonFormat == null || guiButtonFormat.isBlank() ? "<white><bold>{server}</bold></white> <gray>({players} Players)</gray>" : guiButtonFormat;
         }
     }
 
@@ -573,7 +670,7 @@ public final class Config {
             if (entry.getKey() == null || entry.getKey().isBlank()) {
                 continue;
             }
-            String key = entry.getKey().trim();
+            String key = entry.getKey().trim().toLowerCase(Locale.ROOT);
             GroupConfig value = entry.getValue();
             if (value != null && !value.servers().isEmpty()) {
                 cleaned.put(key, value);
@@ -593,7 +690,7 @@ public final class Config {
             }
             List<String> val = immutableNames(entry.getValue(), null);
             if (!val.isEmpty()) {
-                cleaned.put(entry.getKey().trim(), val);
+                cleaned.put(entry.getKey().trim().toLowerCase(Locale.ROOT), val);
             }
         }
         return Collections.unmodifiableMap(cleaned);

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import com.moandjiezana.toml.Toml;
@@ -123,7 +138,7 @@ public final class ConfigManager {
             state.normalized = true;
         }
         List<String> validModes = List.of("least_players", "random", "round_robin",
-                "power_of_two", "weighted_round_robin", "least_connections", "consistent_hash");
+                "power_of_two", "weighted_round_robin", "least_connections", "consistent_hash", "latency");
         if (!validModes.contains(rawSelectionMode.trim().toLowerCase(Locale.ROOT))) {
             state.warnings.add("routing.selection_mode was invalid, so it was reset to " + selectionMode.configValue() + ".");
             state.normalized = true;
@@ -177,7 +192,11 @@ public final class ConfigManager {
                 defaultLobbies,
                 contextual,
                 maxRetries,
-                affinity
+                affinity,
+                readBoolean(toml, state, "routing.use_chat_menu_for_lobby", defaults.routing().useChatMenuForLobby(), "routing.use_chat_menu_for_lobby"),
+                readString(toml, state, "routing.chat_menu_header", defaults.routing().chatMenuHeader(), "routing.chat_menu_header"),
+                readString(toml, state, "routing.chat_menu_format", defaults.routing().chatMenuFormat(), "routing.chat_menu_format"),
+                readString(toml, state, "routing.chat_menu_tooltip", defaults.routing().chatMenuTooltip(), "routing.chat_menu_tooltip")
         );
 
         Config.HealthChecks healthChecks = new Config.HealthChecks(
@@ -224,7 +243,13 @@ public final class ConfigManager {
         }
 
         Config.MetricsSettings metrics = new Config.MetricsSettings(
-                readBoolean(toml, state, "metrics.enabled", defaults.metrics().enabled(), "metrics.enabled")
+                readBoolean(toml, state, "metrics.enabled", defaults.metrics().enabled(), "metrics.enabled"),
+                new Config.PrometheusSettings(
+                        readBoolean(toml, state, "metrics.prometheus.enabled", defaults.metrics().prometheus().enabled(), "metrics.prometheus.enabled"),
+                        readInt(toml, state, "metrics.prometheus.port", defaults.metrics().prometheus().port(), "metrics.prometheus.port"),
+                        readString(toml, state, "metrics.prometheus.bind_host", defaults.metrics().prometheus().bindHost(), "metrics.prometheus.bind_host"),
+                        readString(toml, state, "metrics.prometheus.bearer_token", defaults.metrics().prometheus().bearerToken(), "metrics.prometheus.bearer_token")
+                )
         );
 
         Config.DebugSettings debug = new Config.DebugSettings(
@@ -266,7 +291,11 @@ public final class ConfigManager {
                 readBoolean(toml, state, "bedrock.enabled", defaults.bedrock().enabled(), "bedrock.enabled"),
                 readBoolean(toml, state, "bedrock.auto_detect", defaults.bedrock().autoDetect(), "bedrock.auto_detect"),
                 readBoolean(toml, state, "bedrock.strip_advanced_formatting", defaults.bedrock().stripAdvancedFormatting(), "bedrock.strip_advanced_formatting"),
-                readBoolean(toml, state, "bedrock.affinity_use_java_uuid", defaults.bedrock().affinityUseJavaUuid(), "bedrock.affinity_use_java_uuid")
+                readBoolean(toml, state, "bedrock.affinity_use_java_uuid", defaults.bedrock().affinityUseJavaUuid(), "bedrock.affinity_use_java_uuid"),
+                readBoolean(toml, state, "bedrock.use_gui_for_lobby", defaults.bedrock().useGuiForLobby(), "bedrock.use_gui_for_lobby"),
+                readString(toml, state, "bedrock.gui_title", defaults.bedrock().guiTitle(), "bedrock.gui_title"),
+                readString(toml, state, "bedrock.gui_content", defaults.bedrock().guiContent(), "bedrock.gui_content"),
+                readString(toml, state, "bedrock.gui_button_format", defaults.bedrock().guiButtonFormat(), "bedrock.gui_button_format")
         );
 
         return new Config(
@@ -351,7 +380,7 @@ public final class ConfigManager {
             }
             Map<String, Config.GroupConfig> result = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-                String key = sanitizeMapKey(String.valueOf(entry.getKey()));
+                String key = sanitizeMapKey(String.valueOf(entry.getKey())).toLowerCase(Locale.ROOT);
                 if (key.isBlank()) {
                     continue;
                 }
@@ -505,7 +534,7 @@ public final class ConfigManager {
             }
             Map<String, List<String>> values = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-                String key = sanitizeMapKey(String.valueOf(entry.getKey()));
+                String key = sanitizeMapKey(String.valueOf(entry.getKey())).toLowerCase(Locale.ROOT);
                 if (!(entry.getValue() instanceof List<?> rawList)) {
                     state.warnings.add(label + "." + key + " expected a list of strings and was ignored.");
                     state.normalized = true;
@@ -589,6 +618,12 @@ public final class ConfigManager {
         builder.append("# The version marker for this configuration file. Do not change this unless migrating.").append('\n');
         builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#config_version").append('\n');
         builder.append("config_version = ").append(Config.CURRENT_VERSION).append('\n').append('\n');
+        builder.append("# Whether to run and log the immediate startup update check.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#notify_on_startup").append('\n');
+        builder.append("notify_on_startup = ").append(config.notifyOnStartup()).append('\n');
+        builder.append("# Whether admins are notified in-game about available updates when they join.").append('\n');
+        builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#notify_admins_on_join").append('\n');
+        builder.append("notify_admins_on_join = ").append(config.notifyAdminsOnJoin()).append('\n').append('\n');
 
         // [startup]
         builder.append("[startup]").append('\n');
@@ -626,7 +661,7 @@ public final class ConfigManager {
         // [routing]
         builder.append("[routing]").append('\n');
         builder.append("# The routing brain mode. Determines how a lobby is selected.").append('\n');
-        builder.append("# Available modes: least_players, round_robin, random, power_of_two, weighted_round_robin, least_connections, consistent_hash").append('\n');
+        builder.append("# Available modes: least_players, round_robin, random, power_of_two, weighted_round_robin, least_connections, consistent_hash, latency").append('\n');
         builder.append("# Wiki: ").append(wiki).append("/Routing-Algorithms#selection_mode").append('\n');
         builder.append("selection_mode = ").append(quoted(config.routing().selectionMode().configValue())).append('\n');
         builder.append("# Cycle players to a different lobby when they are already on a lobby in the selection pool.").append('\n');
@@ -641,7 +676,15 @@ public final class ConfigManager {
         builder.append("default_lobbies = ").append(formatLobbyEntryList(config.routing().defaultLobbies())).append('\n');
         builder.append("# Max retry attempts if a connection to a selected lobby server fails.").append('\n');
         builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#max_retries").append('\n');
-        builder.append("max_retries = ").append(config.routing().maxRetries()).append('\n').append('\n');
+        builder.append("max_retries = ").append(config.routing().maxRetries()).append('\n');
+        builder.append("# Use an interactive chat-based selector menu for Java players on /lobby.").append('\n');
+        builder.append("use_chat_menu_for_lobby = ").append(config.routing().useChatMenuForLobby()).append('\n');
+        builder.append("# Header text printed at the top of the Java chat selector menu.").append('\n');
+        builder.append("chat_menu_header = ").append(quoted(config.routing().chatMenuHeader())).append('\n');
+        builder.append("# Format line printed for each lobby candidate in the Java chat menu.").append('\n');
+        builder.append("chat_menu_format = ").append(quoted(config.routing().chatMenuFormat())).append('\n');
+        builder.append("# Tooltip text shown when hovering over a lobby name in the Java chat menu.").append('\n');
+        builder.append("chat_menu_tooltip = ").append(quoted(config.routing().chatMenuTooltip())).append('\n').append('\n');
 
         // [routing.affinity]
         builder.append("[routing.affinity]").append('\n');
@@ -769,13 +812,32 @@ public final class ConfigManager {
         builder.append("strip_advanced_formatting = ").append(config.bedrock().stripAdvancedFormatting()).append('\n');
         builder.append("# Use Java UUID mapped by Floodgate for Bedrock player affinity.").append('\n');
         builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#bedrock_affinity_use_java_uuid").append('\n');
-        builder.append("affinity_use_java_uuid = ").append(config.bedrock().affinityUseJavaUuid()).append('\n').append('\n');
+        builder.append("affinity_use_java_uuid = ").append(config.bedrock().affinityUseJavaUuid()).append('\n');
+        builder.append("# Show a native GUI SimpleForm menu for Bedrock players on /lobby connection.").append('\n');
+        builder.append("use_gui_for_lobby = ").append(config.bedrock().useGuiForLobby()).append('\n');
+        builder.append("# Title text displayed on the Bedrock GUI form selector.").append('\n');
+        builder.append("gui_title = ").append(quoted(config.bedrock().guiTitle())).append('\n');
+        builder.append("# Description content text printed inside the Bedrock GUI form selector.").append('\n');
+        builder.append("gui_content = ").append(quoted(config.bedrock().guiContent())).append('\n');
+        builder.append("# Button text formatting for each lobby in the Bedrock GUI form. Placeholders: {server}, {players}").append('\n');
+        builder.append("gui_button_format = ").append(quoted(config.bedrock().guiButtonFormat())).append('\n').append('\n');
 
         // [metrics]
         builder.append("[metrics]").append('\n');
         builder.append("# Enable anonymous bStats metrics collections.").append('\n');
         builder.append("# Wiki: ").append(wiki).append("/Configuration-Guide#metrics_enabled").append('\n');
         builder.append("enabled = ").append(config.metrics().enabled()).append('\n').append('\n');
+
+        // [metrics.prometheus]
+        builder.append("[metrics.prometheus]").append('\n');
+        builder.append("# Enable embedded Prometheus metrics HTTP endpoint. Exposes detailed real-time telemetry.").append('\n');
+        builder.append("enabled = ").append(config.metrics().prometheus().enabled()).append('\n');
+        builder.append("# Port to listen on for scraping (e.g. http://localhost:9225/metrics).").append('\n');
+        builder.append("port = ").append(config.metrics().prometheus().port()).append('\n');
+        builder.append("# Bind host IP address. Use '0.0.0.0' to listen on all network interfaces.").append('\n');
+        builder.append("bind_host = ").append(quoted(config.metrics().prometheus().bindHost())).append('\n');
+        builder.append("# Optional bearer token required in Authorization header. Strongly recommended for non-loopback bind hosts.").append('\n');
+        builder.append("bearer_token = ").append(quoted(config.metrics().prometheus().bearerToken())).append('\n').append('\n');
 
         // [circuit_breaker]
         builder.append("[circuit_breaker]").append('\n');
@@ -861,7 +923,18 @@ public final class ConfigManager {
     }
 
     private String quoted(String value) {
-        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        if (value == null) {
+            return "\"\"";
+        }
+        return "\"" + value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+                + "\"";
     }
 
     private static final class ParseState {
