@@ -9,7 +9,7 @@
 
 No more funneling all new players into a single hub. No more sending players to offline servers. No more guessing which lobby they ended up on.
 
-Detailed algorithm charts and visualizations can be found in the [wiki/Routing-Algorithms](file:///c:/Users/satya/.antigravity/velocity%20navigater/wiki/Routing-Algorithms.md).
+Detailed algorithm charts and visualizations can be found in the [wiki/Routing-Algorithms](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki/Routing-Algorithms).
 
 ## What's New in v4.2
 
