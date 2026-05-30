@@ -28,7 +28,7 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 
 ### v4.1.0 Features Included
 
-- **Bedrock/Geyser Support:** Seamless routing for Bedrock players with Floodgate UUID mapping. Strips gradients, hovers, and clicks for clean display on Bedrock clients.
+- **Bedrock/Geyser Form GUI Support:** Seamless routing for Bedrock players with Floodgate UUID mapping. Strips gradients, hovers, and clicks. Bedrock players can use a native, interactive Form GUI (popup menu) to select their lobby, which is highly configurable (custom titles, descriptions, and button formats) and toggled via the `use_gui_for_lobby` setting.
 - **`/vn servers` Dashboard:** Paginated lobby diagnostics showing player count, circuit breaker state, drain status, and per-server capacity.
 - **Legacy Color Code Converter:** Auto-detects `&` and `§` codes and converts to MiniMessage. Supports `auto`, `legacy`, and `minimessage` modes.
 - **Levenshtein Config Validation:** Typo auto-correction with distance-based suggestions for all TOML settings.
