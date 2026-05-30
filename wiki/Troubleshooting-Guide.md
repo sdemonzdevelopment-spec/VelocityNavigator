@@ -338,6 +338,28 @@
 
 ---
 
+### Prometheus exporter is running but cannot be reached (Pterodactyl / Docker Panels)
+
+**Symptoms**:
+- Exporter starts successfully in the console (e.g. `Started Prometheus metrics exporter on 0.0.0.0:9225`).
+- Visiting `http://<server-ip>:9225/metrics` in your browser times out or fails.
+- External Prometheus fails to scrape the metrics.
+
+**Likely cause**: In containerized game panels (like Pterodactyl), Docker containers run on an isolated network. External traffic is only forwarded if the port is explicitly allocated to your server in the panel's configuration.
+
+**Resolution**:
+- **Get a Port Allocation**: In your panel's web interface, go to the **Network / Allocations** tab and allocate a new port (e.g., `25582`).
+- **Update config**: In your `navigator.toml` under `[metrics.prometheus]`, set the port to this exact allocated port:
+  ```toml
+  [metrics.prometheus]
+  enabled = true
+  bind_host = "0.0.0.0"
+  port = 25582  # Replace with your allocated port
+  ```
+- **Restart the proxy** (or run `/vn reload`) to bind to the new port.
+
+---
+
 ### Bedrock Form GUI does not open for Bedrock players
 
 **Symptoms**:
