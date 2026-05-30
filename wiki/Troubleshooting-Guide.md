@@ -302,4 +302,45 @@
 
 ---
 
+## Monitoring & Integration Issues
+
+### Prometheus exporter fails to bind to port
+
+**Symptoms**:
+- Console shows log error: `Failed to start Prometheus exporter on port 9225: Address already in use`
+
+**Likely cause**: Another proxy instance or service is already using port 9225 on the host machine.
+
+**Resolution**:
+- Change the Prometheus bind port in your `navigator.toml` under `[metrics.prometheus.port]` to a free port (e.g. `9226` or `9230`).
+- Reload the configuration with `/vn reload`.
+
+---
+
+### Bedrock Form GUI does not open for Bedrock players
+
+**Symptoms**:
+- Bedrock/Geyser players run `/lobby` but receive a standard text list or connect directly, rather than opening a Form GUI.
+
+**Likely cause**: Geyser/Floodgate is not running on the proxy, or `bedrock.use_gui_for_lobby` is disabled.
+
+**Resolution**:
+- Ensure the Floodgate plugin is installed and active on the Velocity proxy.
+- Set `bedrock.use_gui_for_lobby = true` in `navigator.toml`.
+- Run `/vn reload`.
+
+---
+
+### Grafana dashboard file cannot be generated
+
+**Symptoms**:
+- Admin runs `/vn setup grafana` but no `grafana-dashboard.json` is written, or an error is printed in console.
+
+**Likely cause**: File system permission issues in the proxy's directory.
+
+**Resolution**:
+- Ensure the user running the Velocity proxy has write permissions to the `plugins/VelocityNavigator` folder.
+
+---
+
 → See also: [Operations Runbook](Operations-Runbook) | [FAQ](FAQ) | [Configuration Guide](Configuration-Guide)

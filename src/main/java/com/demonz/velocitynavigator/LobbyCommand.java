@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import com.velocitypowered.api.command.SimpleCommand;
@@ -6,15 +21,10 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 public final class LobbyCommand implements SimpleCommand {
 
@@ -38,6 +48,21 @@ public final class LobbyCommand implements SimpleCommand {
             return;
         }
 
+        String[] args = invocation.arguments();
+
+        // Check for direct connection from menu click event
+        if (args.length >= 2 && "connect".equalsIgnoreCase(args[0])) {
+            String targetServer = args[1];
+            String token = args.length >= 3 ? args[2] : "";
+            if (!plugin.consumeMenuToken(player, targetServer, token)) {
+                player.sendMessage(MessageFormatter.render(config.messages().noLobbyFound(),
+                        Map.of("reason", "The lobby menu selection expired. Run /" + config.commands().primary() + " again.", "player", player.getUsername()), player));
+                return;
+            }
+            connectFromMenuSelection(player, config, targetServer);
+            return;
+        }
+
         if (!hasBypassCooldown(player)) {
             OptionalLong secondsRemaining = plugin.cooldowns().secondsRemaining(player.getUniqueId());
             if (secondsRemaining.isPresent()) {
@@ -51,7 +76,7 @@ public final class LobbyCommand implements SimpleCommand {
         plugin.cooldowns().apply(player.getUniqueId(), config.commands().cooldownSeconds());
 
         plugin.previewRoute(player)
-                .thenAccept(decision -> handleDecision(player, config, decision))
+                .thenAccept(decision -> handleDecision(player, config, decision, args))
                 .exceptionally(throwable -> {
                     plugin.cooldowns().clear(player.getUniqueId());
                     player.sendMessage(Component.text("VelocityNavigator could not resolve a lobby right now.", NamedTextColor.RED));
@@ -60,7 +85,65 @@ public final class LobbyCommand implements SimpleCommand {
                 });
     }
 
-    private void handleDecision(Player player, Config config, RouteDecision decision) {
+    private void connectFromMenuSelection(Player player, Config config, String targetServer) {
+        plugin.previewRoute(player)
+                .thenAccept(decision -> {
+                    boolean stillAvailable = decision.onlineCandidates().stream()
+                            .anyMatch(candidate -> candidate.equalsIgnoreCase(targetServer));
+                    if (!stillAvailable) {
+                        plugin.cooldowns().clear(player.getUniqueId());
+                        player.sendMessage(MessageFormatter.render(config.messages().noLobbyFound(),
+                                Map.of("reason", "The selected lobby is no longer available.", "player", player.getUsername()), player));
+                        return;
+                    }
+
+                    boolean sameServer = player.getCurrentServer()
+                            .map(current -> current.getServerInfo().getName().equalsIgnoreCase(targetServer))
+                            .orElse(false);
+                    if (sameServer && !config.commands().reconnectIfSameServer()) {
+                        plugin.cooldowns().clear(player.getUniqueId());
+                        player.sendMessage(MessageFormatter.render(config.messages().alreadyConnected(),
+                                Map.of("server", targetServer, "player", player.getUsername()), player));
+                        return;
+                    }
+
+                    Optional<RegisteredServer> target = plugin.server().getServer(targetServer);
+                    if (target.isEmpty()) {
+                        plugin.cooldowns().clear(player.getUniqueId());
+                        player.sendMessage(MessageFormatter.render(config.messages().noLobbyFound(),
+                                Map.of("reason", "The selected server is no longer registered.", "player", player.getUsername()), player));
+                        return;
+                    }
+
+                    RouteDecision menuDecision = ConnectionWorkflow.withTargetFirst(decision, targetServer, "chat_menu");
+                    player.sendMessage(MessageFormatter.render(config.messages().connecting(),
+                            Map.of("server", targetServer, "player", player.getUsername()), player));
+                    ConnectionWorkflow.connectWithRetry(plugin, player, config, target.get(), menuDecision, "chat_menu");
+                })
+                .exceptionally(throwable -> {
+                    plugin.cooldowns().clear(player.getUniqueId());
+                    player.sendMessage(Component.text("VelocityNavigator could not validate that lobby selection right now.", NamedTextColor.RED));
+                    plugin.logger().error("Failed to validate /lobby menu selection for {}", player.getUsername(), throwable);
+                    return null;
+                });
+    }
+
+    private void handleDecision(Player player, Config config, RouteDecision decision, String[] args) {
+        // Show Bedrock Cumulus GUI if applicable
+        if (plugin.bedrockHandler() != null && plugin.bedrockHandler().isBedrockPlayer(player, config)) {
+            if (config.bedrock().useGuiForLobby() && FloodgateIntegration.isAvailable()) {
+                BedrockFormService.showLobbySelectionForm(player, plugin, decision);
+                return;
+            }
+        }
+
+        // Show Java Interactive Chat Menu if applicable
+        boolean forceMenu = args.length >= 1 && "menu".equalsIgnoreCase(args[0]);
+        if (forceMenu || config.routing().useChatMenuForLobby()) {
+            JavaMenuService.showLobbyMenu(player, plugin, decision);
+            return;
+        }
+
         if (!decision.hasSelection()) {
             // Graceful degradation
             if (config.degradation().enabled()) {
@@ -77,7 +160,7 @@ public final class LobbyCommand implements SimpleCommand {
                         if (target.isPresent()) {
                             player.sendMessage(MessageFormatter.render(config.messages().connecting(),
                                     Map.of("server", degraded, "player", player.getUsername()), player));
-                            connectWithRetry(player, config, target.get(), decision, 0, new HashSet<>());
+                            ConnectionWorkflow.connectWithRetry(plugin, player, config, target.get(), decision, "degradation");
                             return;
                         }
                     }
@@ -122,98 +205,7 @@ public final class LobbyCommand implements SimpleCommand {
 
         player.sendMessage(MessageFormatter.render(config.messages().connecting(),
                 Map.of("server", targetName, "player", player.getUsername()), player));
-        connectWithRetry(player, config, target.get(), decision, 0, new HashSet<>());
-    }
-
-    /**
-     * Chained async retry: attempts connection, and on failure recursively tries
-     * the next candidate from the ordered fallback list. Respects maxRetries config.
-     *
-     * @param player       the player to connect
-     * @param config       current routing configuration
-     * @param target       the server to attempt connection to
-     * @param decision     the original routing decision (contains ordered candidates)
-     * @param attempt      current attempt number (0 = initial, 1+ = retry)
-     * @param triedServers accumulator of all previously-tried server names (FIX-8)
-     */
-    private void connectWithRetry(Player player, Config config, RegisteredServer target,
-                                  RouteDecision decision, int attempt, Set<String> triedServers) {
-        int maxRetries = config.routing().maxRetries();
-        // FIX-8: Track this server as tried
-        triedServers.add(target.getServerInfo().getName().toLowerCase());
-
-        player.createConnectionRequest(target).connect().thenAccept(result -> {
-            if (result.isSuccessful()) {
-                // Record routing stats and affinity
-                plugin.routingStats().recordConnection(target.getServerInfo().getName());
-                // FIX-2: Record connection rate for load balancing
-                if (plugin.rateTracker() != null) {
-                    plugin.rateTracker().recordConnection(target.getServerInfo().getName());
-                }
-                if (plugin.affinityService() != null) {
-                    UUID affinityUuid = player.getUniqueId();
-                    if (plugin.bedrockHandler() != null && plugin.bedrockHandler().isBedrockSupported(config) && config.bedrock().affinityUseJavaUuid()) {
-                        if (plugin.bedrockHandler().isBedrockPlayer(player, config)) {
-                            affinityUuid = FloodgateIntegration.getJavaUUID(player);
-                        }
-                    }
-                    plugin.affinityService().setAffinity(affinityUuid, target.getServerInfo().getName());
-                }
-                return;
-            }
-
-            // If we have retries remaining, try the next candidate
-            if (attempt < maxRetries) {
-                String nextServer = pickNextCandidate(decision, triedServers);
-                if (nextServer != null) {
-                    Optional<RegisteredServer> nextTarget = plugin.server().getServer(nextServer);
-                    if (nextTarget.isPresent()) {
-                        player.sendMessage(MessageFormatter.render(config.messages().retrying(),
-                                Map.of("attempt", String.valueOf(attempt + 1),
-                                       "max", String.valueOf(maxRetries),
-                                       "player", player.getUsername(),
-                                       "server", nextServer), player));
-                        connectWithRetry(player, config, nextTarget.get(), decision, attempt + 1, triedServers);
-                        return;
-                    }
-                }
-            }
-
-            // All retries exhausted or no more candidates
-            plugin.cooldowns().clear(player.getUniqueId());
-            if (attempt == 0) {
-                // Initial connection failed, no retries attempted
-                Component reason = result.getReasonComponent()
-                        .orElse(Component.text("Unknown error", NamedTextColor.RED));
-                player.sendMessage(Component.text("Failed to connect: ", NamedTextColor.RED).append(reason));
-            } else {
-                player.sendMessage(Component.text("Failed to connect after " + (attempt + 1) + " attempt(s).", NamedTextColor.RED));
-            }
-        }).exceptionally(throwable -> {
-            plugin.cooldowns().clear(player.getUniqueId());
-            player.sendMessage(Component.text("An error occurred while connecting to the lobby.", NamedTextColor.RED));
-            plugin.logger().error("[VelocityNavigator] connectWithRetry failed for {}", player.getUsername(), throwable);
-            return null;
-        });
-    }
-
-    /**
-     * FIX-8: Picks the next candidate server from the ordered fallback list,
-     * skipping ALL servers that have been tried across all retry attempts.
-     */
-    private String pickNextCandidate(RouteDecision decision, Set<String> triedServers) {
-        List<String> candidates = decision.orderedCandidates();
-        if (candidates == null || candidates.isEmpty()) {
-            return null;
-        }
-
-        for (String candidate : candidates) {
-            if (!triedServers.contains(candidate.toLowerCase())) {
-                return candidate;
-            }
-        }
-
-        return null; // No more candidates available
+        ConnectionWorkflow.connectWithRetry(plugin, player, config, target.get(), decision, decision.reason());
     }
 
     /**
@@ -233,8 +225,8 @@ public final class LobbyCommand implements SimpleCommand {
                 long idx = degradedCounter.getAndIncrement();
                 yield candidates.get((int) (idx % candidates.size()));
             }
-            // Modes that need player-count data — fall back to random
-            case LEAST_PLAYERS, POWER_OF_TWO, LEAST_CONNECTIONS, WEIGHTED_ROUND_ROBIN, CONSISTENT_HASH ->
+            // Modes that need player-count/telemetry data — fall back to random
+            case LEAST_PLAYERS, POWER_OF_TWO, LEAST_CONNECTIONS, WEIGHTED_ROUND_ROBIN, CONSISTENT_HASH, LATENCY ->
                 candidates.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidates.size()));
         };
     }

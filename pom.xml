@@ -6,7 +6,7 @@
 
     <groupId>com.demonz</groupId>
     <artifactId>VelocityNavigator</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
     <packaging>jar</packaging>
 
     <name>VelocityNavigator</name>
@@ -28,6 +28,10 @@
         <bstats.version>3.2.1</bstats.version>
         <gson.version>2.12.1</gson.version>
         <toml4j.version>0.7.2</toml4j.version>
+        <adventure.version>4.26.1</adventure.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <guice.version>6.0.0</guice.version>
+        <cumulus.version>1.1.2</cumulus.version>
     </properties>
 
     <build>
@@ -52,6 +56,17 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                    <ignoredUnusedDeclaredDependencies>
+                        <ignoredUnusedDeclaredDependency>com.google.code.gson:gson</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.junit.jupiter:junit-jupiter-engine</ignoredUnusedDeclaredDependency>
+                    </ignoredUnusedDeclaredDependencies>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -85,12 +100,7 @@
                 </executions>
             </plugin>
         </plugins>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
+
     </build>
 
     <repositories>
@@ -120,6 +130,54 @@
             <artifactId>api</artifactId>
             <version>2.2.3-SNAPSHOT</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.geysermc.geyser</groupId>
+                    <artifactId>common</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.geysermc.cumulus</groupId>
+            <artifactId>cumulus</artifactId>
+            <version>${cumulus.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-api</artifactId>
+            <version>${adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-key</artifactId>
+            <version>${adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-minimessage</artifactId>
+            <version>${adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-serializer-plain</artifactId>
+            <version>${adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>${guice.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.moandjiezana.toml</groupId>
@@ -137,8 +195,25 @@
             <version>${bstats.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-base</artifactId>
+            <version>${bstats.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>

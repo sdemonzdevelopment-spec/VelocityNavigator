@@ -1,6 +1,6 @@
 # VelocityNavigator Configuration Guide
 
-> Complete reference for every setting in `navigator.toml` — v4.1.0
+> Complete reference for every setting in `navigator.toml` — v4.2.0
 
 ---
 
@@ -108,11 +108,15 @@ max_retries = 2
 
 | Setting | Type | Default | Accepted Values | Description |
 |---------|------|---------|----------------|-------------|
-| `selection_mode` | string | `"least_players"` | `least_players`, `round_robin`, `random`, `power_of_two`, `weighted_round_robin`, `least_connections`, `consistent_hash` | The algorithm used to select a lobby. See [Routing Algorithms](Routing-Algorithms). |
+| `selection_mode` | string | `"least_players"` | `least_players`, `round_robin`, `random`, `power_of_two`, `weighted_round_robin`, `least_connections`, `consistent_hash`, `latency` | The algorithm used to select a lobby. See [Routing Algorithms](Routing-Algorithms). |
 | `cycle_when_possible` | boolean | `true` | — | Prevents routing a player to the same server they're already on. |
 | `balance_initial_join` | boolean | `true` | — | Applies routing when players first connect to the proxy. |
 | `default_lobbies` | LobbyEntry[] | `["lobby-1", "lobby-2"]` | See below | The pool of lobby servers. |
 | `max_retries` | int | `2` | `0`–`10` | Number of retry attempts on connection failure. **New in v4.** |
+| `use_chat_menu_for_lobby` | boolean | `false` | — | Use interactive chat selection menu for Java players. **New in v4.2.** |
+| `chat_menu_header` | string | (see config) | — | Header of the Java interactive chat selector menu. **New in v4.2.** |
+| `chat_menu_format` | string | (see config) | — | Format of each server button in Java chat selector. **New in v4.2.** |
+| `chat_menu_tooltip` | string | (see config) | — | Tooltip displayed when hovering a server button. **New in v4.2.** |
 
 ### LobbyEntry Format
 
@@ -381,6 +385,10 @@ enabled = false
 auto_detect = true
 strip_advanced_formatting = true
 affinity_use_java_uuid = true
+use_gui_for_lobby = false
+gui_title = "<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>"
+gui_content = "<gray>Select a lobby server to connect:</gray>"
+gui_button_format = "<white><bold>{server}</bold></white> <gray>({players} Players)</gray>"
 ```
 
 | Setting | Type | Default | Description |
@@ -389,6 +397,10 @@ affinity_use_java_uuid = true
 | `auto_detect` | boolean | `true` | Auto-detect Geyser/Floodgate on the classpath to enable automatically. |
 | `strip_advanced_formatting` | boolean | `true` | Strip gradients, hover actions, and click events from messages for clean Bedrock display. |
 | `affinity_use_java_uuid` | boolean | `true` | Use Floodgate-mapped Java UUIDs instead of Bedrock XUIDs for player affinity tracking. |
+| `use_gui_for_lobby` | boolean | `false` | Enable native Cumulus SimpleForm lobby selector menu for Bedrock players. **New in v4.2.** |
+| `gui_title` | string | `"<gradient:#8EF7FF:#D9F7FF><bold>Lobby Selector</bold></gradient>"` | Title of the Bedrock Form GUI. **New in v4.2.** |
+| `gui_content` | string | `"<gray>Select a lobby server to connect:</gray>"` | Content text of the Bedrock Form GUI. **New in v4.2.** |
+| `gui_button_format` | string | `"<white><bold>{server}</bold></white> <gray>({players} Players)</gray>"` | Button format of the Bedrock Form GUI. **New in v4.2.** |
 
 ---
 
@@ -432,7 +444,7 @@ verbose_logging = false
 ## Full Example Config
 
 ```toml
-# VelocityNavigator v4.1.0 Configuration
+# VelocityNavigator v4.2.0 Configuration
 # https://github.com/sdemonzdevelopment-spec/VelocityNavigator/wiki
 
 notify_on_startup = true
@@ -505,6 +517,19 @@ notify_admins = true
 
 [metrics]
 enabled = true
+
+[metrics.prometheus]
+enabled = false
+port = 9225
+bindHost = "127.0.0.1"
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable standard bStats metrics. |
+| `prometheus.enabled` | boolean | `false` | Enable embedded Prometheus metrics server. **New in v4.2.** |
+| `prometheus.port` | int | `9225` | Port to expose `/metrics` endpoint. **New in v4.2.** |
+| `prometheus.bindHost` | string | `"127.0.0.1"` | Host/IP to bind the metrics server. **New in v4.2.** |
 
 [circuit_breaker]
 enabled = true

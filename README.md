@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-4.1.0-cyan?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.2.0-cyan?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/platform-Velocity_3.x-blue?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/java-17+-orange?style=for-the-badge" alt="Java">
   <img src="https://img.shields.io/badge/license-Apache_2.0-green?style=for-the-badge" alt="License">
@@ -19,7 +19,7 @@
 
 ---
 
-## 🆕 What's New in v4.1
+## 🆕 What's New in v4.2
 
 | Feature | Description |
 |---------|-------------|
@@ -75,7 +75,7 @@
 
 ## 📦 Installation
 
-1. Download `VelocityNavigator-4.1.0.jar` from [Releases](../../releases)
+1. Download `VelocityNavigator-4.2.0.jar` from [Releases](../../releases)
 2. Place it in your Velocity proxy's `plugins/` folder
 3. Start (or restart) the proxy
 4. Edit `plugins/velocitynavigator/navigator.toml` to configure
@@ -191,7 +191,7 @@ See the [Developer API Guide](https://github.com/sdemonzdevelopment-spec/Velocit
 git clone https://github.com/sdemonzdevelopment-spec/VelocityNavigator.git
 cd VelocityNavigator
 mvn clean verify
-# JAR output: target/VelocityNavigator-4.1.0.jar
+# JAR output: target/VelocityNavigator-4.2.0.jar
 ```
 
 ---

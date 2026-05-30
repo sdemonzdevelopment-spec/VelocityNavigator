@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import org.junit.jupiter.api.Test;
@@ -63,6 +78,11 @@ class ConfigManagerRoundTripTest {
         assertEquals(defaults.bedrock().autoDetect(), config.bedrock().autoDetect());
         assertEquals(defaults.bedrock().stripAdvancedFormatting(), config.bedrock().stripAdvancedFormatting());
         assertEquals(defaults.bedrock().affinityUseJavaUuid(), config.bedrock().affinityUseJavaUuid());
+
+        String written = Files.readString(tempDir.resolve("navigator.toml"));
+        assertTrue(written.contains("notify_on_startup = true"));
+        assertTrue(written.contains("notify_admins_on_join = true"));
+        assertTrue(written.contains("chat_menu_tooltip = \"<white><bold>{server}</bold></white>\\n"));
     }
 
     @Test
@@ -100,6 +120,37 @@ class ConfigManagerRoundTripTest {
         ConfigLoadResult reRead = manager.load();
         assertTrue(reRead.config().routing().contextual().groups().containsKey("bed wars"),
                 "Group key with space should survive write + read round-trip");
+    }
+
+    @Test
+    void contextualGroupLookupIsCaseInsensitiveAfterLoad() throws Exception {
+        Path configPath = tempDir.resolve("navigator.toml");
+        Files.writeString(configPath, """
+                config_version = 6
+
+                [routing]
+                default_lobbies = ["lobby-1"]
+
+                [routing.contextual]
+                enabled = true
+                fallback_to_default = true
+
+                [routing.contextual.groups]
+                BedWars = ["bw-lobby-1"]
+
+                [routing.contextual.sources]
+                "bw-1" = "BedWars"
+                """);
+
+        ConfigManager manager = new ConfigManager(tempDir, LoggerFactory.getLogger("roundtrip-test"));
+        Config config = manager.load().config();
+        RoutePlanner planner = new RoutePlanner(new RouteSelectionStrategy());
+
+        RouteDecision decision = planner.plan("bw-1", config, java.util.Map.of("bw-lobby-1", 0));
+
+        assertTrue(decision.hasSelection());
+        assertEquals("bw-lobby-1", decision.selectedServer());
+        assertEquals("bedwars", decision.usedGroup());
     }
 
     @Test

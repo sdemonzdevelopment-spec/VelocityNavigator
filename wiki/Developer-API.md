@@ -12,7 +12,7 @@ Add VelocityNavigator as a Maven compilation dependency in your core `pom.xml`:
 <dependency>
     <groupId>com.demonz</groupId>
     <artifactId>VelocityNavigator</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -91,11 +91,13 @@ for (Map.Entry<String, Long> entry : distribution.entrySet()) {
 
 ### `getHealthCheckLatencies()` — v4
 
-> ⚠️ **Placeholder** — This method currently returns an empty map. Latency tracking is planned for a future release.
+Get the last measured ping latency in milliseconds for each backend server:
 
 ```java
 Map<String, Long> latencies = api.getHealthCheckLatencies();
-// Currently returns Map.of() — not yet implemented
+for (Map.Entry<String, Long> entry : latencies.entrySet()) {
+    logger.info(entry.getKey() + ": " + entry.getValue() + " ms");
+}
 ```
 
 ### `getCircuitBreakerStatuses()` — v4

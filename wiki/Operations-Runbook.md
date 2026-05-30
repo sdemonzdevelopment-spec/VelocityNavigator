@@ -15,6 +15,7 @@
 7. [Rollback a Config Change](#rollback-a-config-change)
 8. [Check for Updates Manually](#check-for-updates-manually)
 9. [Handle "No Lobby Found" Errors](#handle-no-lobby-found-errors)
+10. [Setup Prometheus & Grafana Monitoring](#setup-prometheus--grafana-monitoring)
 
 ---
 
@@ -247,13 +248,13 @@
 2. **Expected output** (if update available):
    ```
    A new version of VelocityNavigator is available!
-    Current: v4.1.0 | Latest: v4.2.0
+    Current: v4.2.0 | Latest: v4.2.1
    Download: https://modrinth.com/plugin/velocitynavigator
    ```
 
 3. **Expected output** (if up to date):
    ```
-    VelocityNavigator is up to date! (v4.1.0)
+    VelocityNavigator is up to date! (v4.2.0)
    ```
 
 > **Note**: v4.1 re-introduced the periodic update checker with scheduled checks and exponential HTTP 429 backoff (up to 4 hours). Use `/vn updatecheck` for manual checks at any time.
@@ -302,6 +303,84 @@
    enabled = true
    mode = "random"
    ```
+
+---
+
+## Setup Prometheus & Grafana Monitoring
+
+**When**: You want to setup real-time metrics monitoring and visualize your proxy's lobby balancing health via a beautiful Grafana dashboard.
+
+**Steps**:
+
+1. **Enable the Prometheus Exporter**:
+   Open `plugins/velocitynavigator/navigator.toml` and configure the `[metrics.prometheus]` section:
+   ```toml
+   [metrics]
+   enabled = true # Enable bStats
+
+   [metrics.prometheus]
+   enabled = true # Enable Prometheus exporter
+   port = 9225    # Port to serve metrics on (default: 9225)
+   bindHost = "127.0.0.1" # Address to bind the HTTP server to (localhost for security)
+   ```
+   Reload the configuration with `/vn reload`.
+
+2. **Verify Metrics Endpoint**:
+   Use curl or your web browser to check the metrics page:
+   ```bash
+   curl http://localhost:9225/metrics
+   ```
+   **Expected output**:
+   ```
+   # HELP velocitynavigator_player_joins_total Total player joins to the proxy
+   # TYPE velocitynavigator_player_joins_total counter
+   velocitynavigator_player_joins_total 12.0
+   # HELP velocitynavigator_server_online Online status of the server (1 = online, 0 = offline)
+   # TYPE velocitynavigator_server_online gauge
+   velocitynavigator_server_online{server="lobby-1"} 1.0
+   velocitynavigator_server_players{server="lobby-1"} 4.0
+   ...
+   ```
+
+3. **Configure Prometheus Scraper**:
+   Add the following job to your `prometheus.yml` configuration:
+   ```yaml
+   scrape_configs:
+     - job_name: 'velocity_navigator'
+       static_configs:
+         - targets: ['<proxy-ip>:9225']
+   ```
+   Restart Prometheus to apply.
+
+4. **Generate the Grafana Dashboard JSON**:
+   Run the setup command from the console or in-game as an administrator:
+   ```
+   /vn setup grafana
+   ```
+   **Expected output**:
+   ```
+   [VelocityNavigator] Grafana dashboard JSON generated and saved to plugins/VelocityNavigator/grafana-dashboard.json
+   ```
+
+5. **Import into Grafana**:
+   - Open your Grafana dashboard.
+   - Click **Dashboards** → **New** → **Import**.
+   - Copy the contents of the generated `grafana-dashboard.json` and paste it into the **Import via panel json** box, or upload the file.
+   - Select your Prometheus data source and click **Import**.
+   - Enjoy a fully interactive, animated telemetry dashboard for your Velocity proxy!
+
+**Metrics Exposed**:
+- `velocitynavigator_player_joins_total` - Total player joins
+- `velocitynavigator_player_leaves_total` - Total player leaves
+- `velocitynavigator_server_online` - Server online status (all registered servers)
+- `velocitynavigator_server_players` - Player count per server (all registered servers)
+- `velocitynavigator_server_latency_ms` - Health check ping latency in ms (lobby servers only)
+- `velocitynavigator_server_circuit_breaker` - Circuit breaker state (0=CLOSED, 1=HALF_OPEN, 2=OPEN)
+- `velocitynavigator_server_drained` - Drain status (1=drained, 0=active)
+- `velocitynavigator_routed_connections_total` - Total routed connections
+- `velocitynavigator_redirects_total` - Total connection routes grouped by reason (affinity, consistent_hash, direct_connect, bedrock_gui, least_players, round_robin, etc.) and target server
+- `velocitynavigator_circuit_breaker_trips_total` - Cumulative circuit breaker trips per server
+- `velocitynavigator_fallback_events_total` - Fallback events count by type (degradation, retry, contextual)
 
 ---
 

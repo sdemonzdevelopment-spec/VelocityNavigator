@@ -10,7 +10,7 @@ on:
       version:
         description: 'Release version (e.g. 3.0.0)'
         required: true
-        default: '4.1.0'
+        default: '4.2.0'
       create_release:
         description: 'Create a GitHub Release?'
         required: true

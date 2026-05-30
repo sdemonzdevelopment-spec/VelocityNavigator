@@ -4,15 +4,18 @@
 
 # VelocityNavigator
 
-> `v4.1.0` &nbsp;·&nbsp; Velocity 3.x &nbsp;·&nbsp; Java 17+
+> `v4.2.0` &nbsp;·&nbsp; Velocity 3.x &nbsp;·&nbsp; Java 17+
 
-**VelocityNavigator** is an intelligent lobby routing plugin for Velocity proxies. It distributes players across your lobby servers using real-time load balancing — so no single server bears the entire load. With seven selection algorithms, circuit breaker protection, player affinity, and contextual routing, it handles everything from a two-server hobby network to a hundred-node infrastructure without breaking a sweat.
+**VelocityNavigator** is an intelligent lobby routing plugin for Velocity proxies. It distributes players across your lobby servers using real-time load balancing — so no single server bears the entire load. With eight selection algorithms, circuit breaker protection, player affinity, contextual routing, and interactive selector menus, it handles everything from a two-server hobby network to a hundred-node infrastructure without breaking a sweat.
 
 ---
 
 ## ✨ Feature Highlights
 
-- 🧠 **7 Selection Algorithms** — `least_players`, `round_robin`, `random`, `power_of_two`, `weighted_round_robin`, `least_connections`, `consistent_hash` — pick the one that fits, or use different modes per group
+- 🧠 **8 Selection Algorithms** — `least_players`, `round_robin`, `random`, `power_of_two`, `weighted_round_robin`, `least_connections`, `consistent_hash`, `latency` — pick the one that fits, or use different modes per group
+- 📱 **Interactive Selection Menus** — native Bedrock Form GUI (via Geyser/Floodgate) and clickable Java Chat Selector Menu with hover tooltips (diagnostics/latency)
+- 📊 **Prometheus Exporter** — embedded HTTP server serving metrics on player joins, leaves, server status, latency, circuit breaker states, and fallback events
+- 📈 **Grafana Integration** — setup command `/vn setup grafana` that generates premium, pre-configured Grafana dashboards instantly
 - ⚡ **Initial Join Balancing** — players are load-balanced the moment they connect, not just when they type `/lobby`
 - 🛡️ **Circuit Breaker** — automatic failure detection with CLOSED → OPEN → HALF_OPEN state machine; unhealthy servers are skipped until they recover
 - 🔀 **Contextual Routing** — route players to game-specific lobbies based on which server they're leaving, with per-group selection modes and fallback chains

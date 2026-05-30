@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -9,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -25,12 +41,12 @@ public final class ServerHealthService {
     private CircuitBreaker circuitBreaker;
     private ServerLoadTracker loadTracker;
 
-    /**
-     * Active in-flight ping requests. When multiple callers request a ping for the same server
-     * before the first ping completes, they all share the same Future instead of firing
-     * duplicate network requests. This prevents ping storms under concurrent /lobby usage.
-     */
     private final ConcurrentMap<String, CompletableFuture<ServerStatus>> activePings = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> latencies = new ConcurrentHashMap<>();
+
+    public Map<String, Long> getLatencies() {
+        return java.util.Collections.unmodifiableMap(latencies);
+    }
 
     public ServerHealthService(ProxyServer server, Logger logger) {
         this(server, logger, Clock.systemUTC());
@@ -71,9 +87,32 @@ public final class ServerHealthService {
             }
             int playerCount = registered.get().getPlayersConnected().size();
             result.put(serverName, playerCount);
-            // FIX-1: Update EMA load tracker with fresh player counts from cache reads
+            // Keep EMA load estimates fresh when cached health data is reused.
             if (loadTracker != null) {
                 loadTracker.update(serverName, playerCount);
+            }
+        }
+        return result;
+    }
+
+    public Map<String, Integer> getRegisteredOnlineServers(Collection<String> serverNames) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        if (serverNames == null) {
+            return result;
+        }
+        for (String serverName : serverNames) {
+            if (serverName == null || serverName.isBlank()) {
+                continue;
+            }
+            Optional<RegisteredServer> registered = server.getServer(serverName);
+            if (registered.isEmpty()) {
+                continue;
+            }
+            int playerCount = registered.get().getPlayersConnected().size();
+            String normalized = serverName.toLowerCase(Locale.ROOT);
+            result.put(normalized, playerCount);
+            if (loadTracker != null) {
+                loadTracker.update(normalized, playerCount);
             }
         }
         return result;
@@ -115,12 +154,16 @@ public final class ServerHealthService {
             return CompletableFuture.completedFuture(new ServerStatus(serverName, true, cachedEntry.online(), true, cachedEntry.checkedAt(), players));
         }
 
+        long startTime = System.currentTimeMillis();
+
         // Coalesce concurrent pings: if a ping is already in-flight for this server,
         // reuse that Future instead of firing another network request.
         return activePings.computeIfAbsent(serverName, name -> {
             CompletableFuture<ServerStatus> pingFuture = registeredServer.ping()
                     .orTimeout(settings.timeoutMs(), TimeUnit.MILLISECONDS)
                     .thenApply(ignored -> {
+                        long latency = System.currentTimeMillis() - startTime;
+                        latencies.put(name.toLowerCase(java.util.Locale.ROOT), latency);
                         Instant checkedAt = clock.instant();
                         cache.put(name, true, checkedAt);
                         int currentPlayers = registeredServer.getPlayersConnected().size();
@@ -128,20 +171,21 @@ public final class ServerHealthService {
                         if (circuitBreaker != null) {
                             circuitBreaker.recordSuccess(name);
                         }
-                        // FIX-1: Update EMA load tracker on successful health check
+                        // Update EMA load tracker on successful health check.
                         if (loadTracker != null) {
                             loadTracker.update(name, currentPlayers);
                         }
                         return new ServerStatus(name, true, true, false, checkedAt, currentPlayers);
                     })
                     .exceptionally(throwable -> {
+                        latencies.remove(name.toLowerCase(java.util.Locale.ROOT));
                         Instant checkedAt = clock.instant();
                         cache.put(name, false, checkedAt);
                         // Record failure on circuit breaker
                         if (circuitBreaker != null) {
                             circuitBreaker.recordFailure(name);
                         }
-                        // FIX-1: Update EMA load tracker with 0 for offline servers
+                        // Update EMA load tracker with 0 for offline servers.
                         if (loadTracker != null) {
                             loadTracker.update(name, 0);
                         }

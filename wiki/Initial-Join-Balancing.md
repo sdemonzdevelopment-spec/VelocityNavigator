@@ -20,7 +20,7 @@ Velocity always tries the **first server** in the list. If `lobby-1` is online, 
 
 ## ⚡ The VelocityNavigator Solution
 
-VelocityNavigator v4.1.0 intercepts the `PlayerChooseInitialServerEvent` and forcefully applies its routing brain **before** the player's client ever lands on any server.
+VelocityNavigator intercepts the `PlayerChooseInitialServerEvent` and applies its routing logic **before** the player's client lands on any server.
 
 ```mermaid
 sequenceDiagram

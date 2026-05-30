@@ -5,23 +5,29 @@
 > [!IMPORTANT]
 > **Velocity-Only Proxy Plugin:** VelocityNavigator runs exclusively on your **Velocity proxy server (3.x)**. It will not load or function if installed on Bukkit, Spigot, Paper, Purpur, or Folia backend servers. Install the JAR on your **Velocity proxy's plugins folder**, not your backend servers.
 
-**VelocityNavigator v4.1** is a production-grade Velocity proxy plugin that introduces absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, Bedrock/Geyser support, and a highly context-aware `/lobby` system.
+**VelocityNavigator v4.2** is a production-grade Velocity proxy plugin that introduces absolute traffic control over your network through intelligent load balancing, circuit breaker resilience, Bedrock/Geyser support, and a highly context-aware `/lobby` system.
 
 No more funneling all new players into a single hub. No more sending players to offline servers. No more guessing which lobby they ended up on.
 
-![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
+Detailed algorithm charts and visualizations can be found in the [wiki/Routing-Algorithms](file:///c:/Users/satya/.antigravity/velocity%20navigater/wiki/Routing-Algorithms.md).
 
-## What's New in v4.1
+## What's New in v4.2
 
-- **Bedrock/Geyser Support** — Seamless Bedrock player routing with Floodgate UUID mapping and format stripping
-- **`/vn servers` Dashboard** — Paginated diagnostics with CB, drain, and capacity status per lobby
-- **Legacy Color Code Converter** — Auto-detects and converts `&`/`§` codes to MiniMessage in `auto`/`legacy`/`minimessage` modes
-- **Levenshtein Config Validation** — Typo auto-correction with suggestions for all TOML enum keys
-- **Self-Documenting Config** — Every TOML key gets rich comments + wiki anchors on write/migration
-- **First-Run Welcome & Upgrades Digest** — Console dashboard on fresh install, release notes on upgrades
-- **Periodic Update Checker** — Scheduled checks with exponential 429 backoff (up to 4 hours)
-- **Empty Lobby Fallbacks** — Configurable `disconnect` or `fallback_server` strategy
-- **Permission Default Change** — `/lobby` defaults to `"none"` for immediate out-of-the-box use
+- **Hardened Security & Menu Selections** — Stale or forged lobby menu selections cannot bypass drain mode, capacity checks, or circuit breakers anymore.
+- **Prometheus Boot Integration** — Exporter starts immediately during initial proxy boot when enabled.
+- **Circuit Breaker Accuracy** — Restored true consecutive-failure tracking behavior for the breaker.
+- **Redesigned Configuration (v6)** — The `navigator.toml` file has been completely redesigned with clean section banners and grouped documentation.
+- **Unified Notifications** — Aligned admin join notifications with the global `[update_checker].notify_admins` configuration and preserved during config writes.
+- **Improved Validation & Normalization** — Support for `latency` routing mode and mixed-case contextual group name matching.
+
+### v4.1 Features Included
+
+- **Bedrock/Geyser Support** — Seamless Bedrock player routing with Floodgate UUID mapping and format stripping.
+- **`/vn servers` Dashboard** — Paginated diagnostics with CB, drain, and capacity status per lobby.
+- **Legacy Color Code Converter** — Auto-detects and converts legacy color codes to MiniMessage syntax.
+- **Levenshtein Config Validation** — Distance-based typo suggestions for TOML settings.
+- **Self-Documenting Config** — Automatically populates TOML comments with direct wiki links.
+- **First-Run Welcome & Upgrades** — Custom welcome message on fresh install and changelog summary on upgrades.
 
 ### v4.0 Features Included
 
@@ -116,7 +122,7 @@ Player is connected to the best available lobby
 ## Quick Config Example
 
 ```toml
-# VelocityNavigator v4.1.0 Configuration
+# VelocityNavigator v4.2.0 Configuration
 
 notify_on_startup = true
 notify_admins_on_join = true

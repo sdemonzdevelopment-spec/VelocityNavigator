@@ -18,13 +18,13 @@ Also back up your entire `plugins/velocitynavigator/` directory if you want to b
 
 ## Step 1: Replace the JAR
 
-1. Download `VelocityNavigator-4.1.0.jar` from [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases)
+1. Download `VelocityNavigator-4.2.0.jar` from [Releases](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/releases)
 2. Remove the old JAR from `plugins/`
 3. Place the new JAR in `plugins/`
 
 ```
 plugins/
-├── VelocityNavigator-4.1.0.jar   ← new
+├── VelocityNavigator-4.2.0.jar   ← new
 └── velocitynavigator/
     ├── navigator.toml              ← will be auto-migrated
     └── ...
@@ -206,6 +206,32 @@ In v4.1.0, `commands.permission` defaults to `"none"` instead of `"velocitynavig
 | Command | Description |
 |---------|-------------|
 | `/vn servers` | Paginated lobby server status dashboard |
+
+---
+
+## v4.2.0 Update: Config Version v6
+
+If upgrading to v4.2.0, the config will auto-migrate to version 6.
+
+### New v4.2 features and configurations:
+
+1. **Interactive Selector Menus**:
+   - **Bedrock Form GUI**: Automatically displays a native Cumulus SimpleForm lobby selector to Geyser players (customizable titles/content/buttons under `[bedrock]`).
+   - **Java Chat Selector**: Adventure-formatted click-to-connect chat menu for Java players (customizable headers/formats/tooltips under `[routing]`).
+2. **Ping-Based Routing (`latency`)**:
+   - New `latency` routing strategy selects the server with the lowest measured ping.
+3. **Prometheus Monitoring**:
+   - Embedded metrics exporter serving Prometheus formatted metrics at `/metrics` (configure under `[metrics.prometheus]`).
+4. **Grafana setup command**:
+   - Generate custom, premium pre-configured Grafana dashboards with `/vn setup grafana`.
+
+### New v4.2 Config keys added:
+
+- `routing.use_chat_menu_for_lobby` — Toggle chat selector menu for Java players.
+- `routing.chat_menu_header` / `chat_menu_format` / `chat_menu_tooltip` — Customizable Java chat selector texts.
+- `bedrock.use_gui_for_lobby` — Toggle native Form selector for Bedrock players.
+- `bedrock.gui_title` / `gui_content` / `gui_button_format` — Customizable Bedrock Form selector texts.
+- `metrics.prometheus.enabled` / `port` / `bindHost` — Embedded Prometheus server configuration.
 
 ---
 

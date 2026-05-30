@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import java.util.Comparator;
@@ -32,6 +47,7 @@ public final class RouteSelectionStrategy {
             case WEIGHTED_ROUND_ROBIN -> Optional.of(selectWeightedRoundRobin(candidates, groupKey));
             case LEAST_CONNECTIONS -> selectLeastConnections(candidates);
             case CONSISTENT_HASH -> Optional.empty(); // Handled separately by RoutePlanner with player context
+            case LATENCY -> selectLatency(candidates);
         };
     }
 
@@ -104,6 +120,23 @@ public final class RouteSelectionStrategy {
 
             return best != null ? best : candidates.get(0);
         }
+    }
+
+    private Optional<ServerCandidate> selectLatency(List<ServerCandidate> candidates) {
+        return candidates.stream()
+                .min((a, b) -> {
+                    long la = a.latency() < 0 ? Long.MAX_VALUE : a.latency();
+                    long lb = b.latency() < 0 ? Long.MAX_VALUE : b.latency();
+                    int cmp = Long.compare(la, lb);
+                    if (cmp != 0) {
+                        return cmp;
+                    }
+                    cmp = Integer.compare(a.playerCount(), b.playerCount());
+                    if (cmp != 0) {
+                        return cmp;
+                    }
+                    return a.name().compareTo(b.name());
+                });
     }
 
     private Optional<ServerCandidate> selectLeastConnections(List<ServerCandidate> candidates) {

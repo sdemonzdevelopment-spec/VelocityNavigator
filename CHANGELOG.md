@@ -5,7 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [4.1.0] — 2026-05-26
+## [4.2.0] - 2026-05-30
+
+### Fixed
+
+- Hardened Java and Bedrock lobby menu selections so stale or manually forged choices cannot bypass drain mode, circuit breakers, capacity checks, or configured lobby pools.
+- Started the Prometheus exporter during initial proxy boot when enabled, not only after `/vn reload`.
+- Restored true consecutive-failure behavior for the circuit breaker.
+- Preserved update notification settings during config rewrites and aligned admin join notifications with `[update_checker].notify_admins`.
+- Accepted the documented `latency` routing mode in config validation and migration normalization.
+- Normalized contextual group names consistently so mixed-case mappings continue to route.
+- Aligned Maven artifact version, Velocity plugin metadata, and user-facing docs for the 4.2.0 release.
+
+### Changed
+
+- **Config version bumped to 6.** The generated `navigator.toml` has been completely redesigned with section banners, grouped documentation, and a friendlier layout. Existing configs are auto-migrated and backed up.
+
+---
+
+## [4.1.0] - 2026-05-26
 
 ### Added
 
@@ -20,7 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Empty Lobby Routing Fallbacks** — Customizable degradation strategies (`"disconnect"` or `"fallback_server"`) when all primary lobby options are offline or circuit-broken.
 - **Permission Default Change** — Standardized `/lobby` default command permission changed to `"none"` for immediate out-of-the-box adoption. Existing migration preserves existing admin-defined configurations safely.
 
-## [4.0.0] — 2026-05-01
+## [4.0.0] - 2026-05-01
 
 ### Added
 

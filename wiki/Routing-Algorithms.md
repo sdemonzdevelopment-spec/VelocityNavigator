@@ -15,6 +15,7 @@
 | `weighted_round_robin` | ★★★★☆ | Low | No | No | Unequal server capacity |
 | `least_connections` | ★★★★★ | Medium | Yes | No | Bursty traffic, large networks |
 | `consistent_hash` | ★★★☆☆ | Low | No | Yes | Session affinity, party routing |
+| `latency` | ★★★★★ | Medium | Yes | No | Lowest ping, regional networks |
 
 ---
 
@@ -163,6 +164,21 @@ lobby-2: ███  (3 players)
 lobby-3: ███  (3 players)
 ```
 *Same player always goes to the same server. Adding/removing servers only remaps a fraction of players.*
+
+---
+
+## 8️⃣ Latency (`latency`)
+
+> Picks the server with the lowest ping latency measured during health check pings.
+
+**Complexity**: O(n) — scans all candidates each selection to find the minimum ping.
+
+**When to use**: Multi-regional proxy networks or when players should always connect to the geographically closest/lowest latency lobby server.
+
+**When NOT to use**: When you want even player distribution, as players in the same geographical region will naturally group onto the same low-ping server.
+
+**Example (10 players → 3 servers, pings: lobby-east=25ms, lobby-west=70ms, lobby-eu=110ms)**:
+Players from the East Coast are routed to `lobby-east` (25ms), West Coast to `lobby-west` (70ms), and EU to `lobby-eu` (110ms) to ensure optimal gameplay quality.
 
 ---
 

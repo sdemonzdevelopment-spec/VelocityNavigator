@@ -17,7 +17,16 @@ The smartest lobby system for Velocity proxies — true initial join load balanc
 
 ![Routing](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/feature-routing.png?v=4)
 
-## 🚀 v4.1.0 Feature Highlights
+## 🚀 v4.2.0 Feature Highlights
+
+- **Hardened Security & Menu Selections** — Stale or forged lobby menu selections cannot bypass drain mode, capacity checks, or circuit breakers anymore.
+- **Prometheus Boot Integration** — Exporter starts immediately during initial proxy boot when enabled.
+- **Circuit Breaker Accuracy** — Restored true consecutive-failure tracking behavior for the breaker.
+- **Redesigned Configuration (v6)** — The `navigator.toml` file has been completely redesigned with clean section banners and grouped documentation.
+- **Unified Notifications** — Aligned admin join notifications with the global `[update_checker].notify_admins` configuration and preserved during config writes.
+- **Improved Validation & Normalization** — Support for `latency` routing mode and mixed-case contextual group name matching.
+
+### v4.1.0 Features Included
 
 - **Bedrock/Geyser Support:** Seamless routing for Bedrock players with Floodgate UUID mapping. Strips gradients, hovers, and clicks for clean display on Bedrock clients.
 - **`/vn servers` Dashboard:** Paginated lobby diagnostics showing player count, circuit breaker state, drain status, and per-server capacity.

@@ -3,4 +3,4 @@
 
 **[GitHub](https://github.com/sdemonzdevelopment-spec/VelocityNavigator)** · [Support / Discord](https://discord.gg/demonz) · [🐛 Report a Bug](https://github.com/sdemonzdevelopment-spec/VelocityNavigator/issues)
 
-*VelocityNavigator v4.1.0 · by [DemonZ Development](https://github.com/sdemonzdevelopment-spec)*
+*VelocityNavigator v4.2.0 · by [DemonZ Development](https://github.com/sdemonzdevelopment-spec)*

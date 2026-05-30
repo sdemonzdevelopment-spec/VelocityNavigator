@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 DemonZ Development
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.demonz.velocitynavigator;
 
 import com.velocitypowered.api.command.SimpleCommand;
@@ -15,7 +30,7 @@ import java.util.stream.Collectors;
 
 public final class NavigatorAdminCommand implements SimpleCommand {
 
-    private static final List<String> ROOT_SUBCOMMANDS = List.of("reload", "status", "version", "updatecheck", "debug", "drain", "undrain", "servers", "help");
+    private static final List<String> ROOT_SUBCOMMANDS = List.of("reload", "status", "version", "updatecheck", "debug", "drain", "undrain", "servers", "setup", "help");
     private static final List<String> DEBUG_TYPES = List.of("player", "server");
     private static final List<String> DRAIN_SUBCOMMANDS = List.of("status");
 
@@ -38,7 +53,7 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             return;
         }
 
-        switch (arguments[0].toLowerCase()) {
+        switch (arguments[0].toLowerCase(Locale.ROOT)) {
             case "reload" -> reload(invocation.source());
             case "status" -> invocation.source().sendMessage(plugin.buildStatusComponent());
             case "version" -> invocation.source().sendMessage(plugin.buildVersionComponent());
@@ -47,6 +62,7 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             case "drain" -> drain(invocation.source(), arguments);
             case "undrain" -> undrain(invocation.source(), arguments);
             case "servers" -> ServersSubCommand.execute(invocation.source(), arguments, plugin);
+            case "setup" -> setup(invocation.source(), arguments);
             case "help" -> invocation.source().sendMessage(plugin.buildHelpComponent());
             default -> invocation.source().sendMessage(Component.text("Unknown subcommand. Use /velocitynavigator help.", NamedTextColor.YELLOW));
         }
@@ -105,12 +121,21 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             }
         }
 
-        // FIX-3: Tab completion for top-level /vn undrain <server>
+        // Tab completion for top-level /vn undrain <server>.
         if ("undrain".equalsIgnoreCase(args[0])) {
             if (args.length == 2) {
                 String partial = args[1].toLowerCase(Locale.ROOT);
                 return plugin.drainService().drainState().keySet().stream()
                         .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(partial))
+                        .collect(Collectors.toList());
+            }
+        }
+
+        if ("setup".equalsIgnoreCase(args[0])) {
+            if (args.length == 2) {
+                String partial = args[1].toLowerCase(Locale.ROOT);
+                return List.of("grafana").stream()
+                        .filter(s -> s.startsWith(partial))
                         .collect(Collectors.toList());
             }
         }
@@ -149,7 +174,7 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             return;
         }
 
-        String targetType = arguments[1].toLowerCase();
+        String targetType = arguments[1].toLowerCase(Locale.ROOT);
         String targetName = arguments[2];
         if ("player".equals(targetType)) {
             Player player = plugin.server().getPlayer(targetName).orElse(null);
@@ -183,7 +208,7 @@ public final class NavigatorAdminCommand implements SimpleCommand {
             return;
         }
 
-        String subCmd = arguments[1].toLowerCase();
+        String subCmd = arguments[1].toLowerCase(Locale.ROOT);
 
         // Check if the argument matches a registered server name first.
         // This prevents server names like "status" or "undrain" from being
@@ -223,9 +248,6 @@ public final class NavigatorAdminCommand implements SimpleCommand {
         source.sendMessage(Component.text("Server '" + serverName + "' is now drained. No players will be routed to it.", NamedTextColor.YELLOW));
     }
 
-    /**
-     * FIX-3: Top-level /vn undrain <server> command handler.
-     */
     private void undrain(CommandSource source, String[] arguments) {
         if (arguments.length < 2) {
             source.sendMessage(Component.text("Usage: /vn undrain <server>", NamedTextColor.YELLOW));
@@ -234,5 +256,27 @@ public final class NavigatorAdminCommand implements SimpleCommand {
         String serverName = arguments[1];
         plugin.drainService().undrain(serverName.toLowerCase(Locale.ROOT));
         source.sendMessage(Component.text("Server '" + serverName + "' is no longer drained.", NamedTextColor.GREEN));
+    }
+
+    private void setup(CommandSource source, String[] arguments) {
+        if (arguments.length < 2) {
+            source.sendMessage(Component.text("Usage: /velocitynavigator setup grafana", NamedTextColor.YELLOW));
+            return;
+        }
+
+        String target = arguments[1].toLowerCase(Locale.ROOT);
+        if ("grafana".equals(target)) {
+            java.nio.file.Path targetFile = plugin.getDataDirectory().resolve("grafana-dashboard.json");
+            try {
+                java.nio.file.Files.writeString(targetFile, GrafanaDashboardCreator.getDashboardJson());
+                source.sendMessage(MessageFormatter.render("<green>Successfully generated grafana-dashboard.json in the plugin directory!</green>"));
+            } catch (IOException e) {
+                source.sendMessage(Component.text("Failed to generate Grafana dashboard file: " + e.getMessage(), NamedTextColor.RED));
+                plugin.logger().error("Failed to generate Grafana dashboard file", e);
+            }
+            return;
+        }
+
+        source.sendMessage(Component.text("Usage: /velocitynavigator setup grafana", NamedTextColor.YELLOW));
     }
 }
