@@ -23,6 +23,8 @@ Detailed algorithm charts and visualizations can be found in the [wiki/Routing-A
 ### v4.1 Features Included
 
 - **Bedrock/Geyser Form GUI Support** — Seamless routing with Floodgate UUID mapping and format stripping. Bedrock players can use a native, interactive Form GUI (popup menu) to select their lobby. This GUI is highly configurable (supports custom titles, body text, and button formats) and can be toggled on/off using the `use_gui_for_lobby` setting.
+  
+  ![Bedrock Selector](https://raw.githubusercontent.com/sdemonzdevelopment-spec/VelocityNavigator/main/assets/bedrock-selector.png?v=4)
 - **`/vn servers` Dashboard** — Paginated diagnostics with CB, drain, and capacity status per lobby.
 - **Legacy Color Code Converter** — Auto-detects and converts legacy color codes to MiniMessage syntax.
 - **Levenshtein Config Validation** — Distance-based typo suggestions for TOML settings.
