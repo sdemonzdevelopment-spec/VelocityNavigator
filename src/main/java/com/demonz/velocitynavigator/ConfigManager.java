@@ -247,8 +247,8 @@ public final class ConfigManager {
                 new Config.PrometheusSettings(
                         readBoolean(toml, state, "metrics.prometheus.enabled", defaults.metrics().prometheus().enabled(), "metrics.prometheus.enabled"),
                         readInt(toml, state, "metrics.prometheus.port", defaults.metrics().prometheus().port(), "metrics.prometheus.port"),
-                        readString(toml, state, "metrics.prometheus.bind_host", defaults.metrics().prometheus().bindHost(), "metrics.prometheus.bind_host"),
-                        readString(toml, state, "metrics.prometheus.bearer_token", defaults.metrics().prometheus().bearerToken(), "metrics.prometheus.bearer_token")
+                        readString(toml, state, "metrics.prometheus.bind_host", defaults.metrics().prometheus().bindHost(), "metrics.prometheus.bind_host", "metrics.prometheus.bindHost"),
+                        readString(toml, state, "metrics.prometheus.bearer_token", defaults.metrics().prometheus().bearerToken(), "metrics.prometheus.bearer_token", "metrics.prometheus.bearerToken")
                 )
         );
 

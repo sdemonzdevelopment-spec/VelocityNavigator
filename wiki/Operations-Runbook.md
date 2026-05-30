@@ -321,7 +321,7 @@
    [metrics.prometheus]
    enabled = true # Enable Prometheus exporter
    port = 9225    # Port to serve metrics on (default: 9225)
-   bindHost = "127.0.0.1" # Address to bind the HTTP server to (localhost for security)
+   bind_host = "127.0.0.1" # Address to bind the HTTP server to (localhost for security)
    ```
    Reload the configuration with `/vn reload`.
 

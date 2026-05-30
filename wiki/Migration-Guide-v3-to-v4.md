@@ -231,7 +231,7 @@ If upgrading to v4.2.0, the config will auto-migrate to version 6.
 - `routing.chat_menu_header` / `chat_menu_format` / `chat_menu_tooltip` — Customizable Java chat selector texts.
 - `bedrock.use_gui_for_lobby` — Toggle native Form selector for Bedrock players.
 - `bedrock.gui_title` / `gui_content` / `gui_button_format` — Customizable Bedrock Form selector texts.
-- `metrics.prometheus.enabled` / `port` / `bindHost` — Embedded Prometheus server configuration.
+- `metrics.prometheus.enabled` / `port` / `bind_host` — Embedded Prometheus server configuration.
 
 ---
 

@@ -521,7 +521,7 @@ enabled = true
 [metrics.prometheus]
 enabled = false
 port = 9225
-bindHost = "127.0.0.1"
+bind_host = "127.0.0.1"
 ```
 
 | Setting | Type | Default | Description |
@@ -529,7 +529,7 @@ bindHost = "127.0.0.1"
 | `enabled` | boolean | `true` | Enable standard bStats metrics. |
 | `prometheus.enabled` | boolean | `false` | Enable embedded Prometheus metrics server. **New in v4.2.** |
 | `prometheus.port` | int | `9225` | Port to expose `/metrics` endpoint. **New in v4.2.** |
-| `prometheus.bindHost` | string | `"127.0.0.1"` | Host/IP to bind the metrics server. **New in v4.2.** |
+| `prometheus.bind_host` | string | `"127.0.0.1"` | Host/IP to bind the metrics server. **New in v4.2.** |
 
 ```toml
 [circuit_breaker]
