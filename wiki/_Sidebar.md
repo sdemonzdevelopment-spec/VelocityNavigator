@@ -21,6 +21,7 @@
 
 **Operations**
 - 📋 [Operations Runbook](Operations-Runbook)
+- 📊 [Prometheus & Grafana Setup](Prometheus-&-Grafana-Setup)
 - 🔧 [Troubleshooting Guide](Troubleshooting-Guide)
 - ❓ [FAQ](FAQ)
 
