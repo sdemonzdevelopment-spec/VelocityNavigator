@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [4.2.0] - 2026-05-30
 
+### Added
+
+- **Embedded Prometheus Exporter & Admin Panel** — Built-in HTTP server exposing real-time metrics (`/metrics`) on routing distributions, pings, CB statuses, and connection events.
+- **Grafana Dashboard Setup Command** — `/vn setup grafana` auto-generates a premium, pre-configured Grafana telemetry dashboard configuration JSON file.
+- **Interactive Selector Menus** — Native Bedrock Form GUI (via Geyser/Floodgate integration) and clickable Java Chat Selector Menu with hover tooltips displaying health and latencies.
+- **Ping-Based Routing Strategy (`latency`)** — Dynamically select the server with the lowest ping latency to optimize player connections.
+
 ### Fixed
 
 - Hardened Java and Bedrock lobby menu selections so stale or manually forged choices cannot bypass drain mode, circuit breakers, capacity checks, or configured lobby pools.

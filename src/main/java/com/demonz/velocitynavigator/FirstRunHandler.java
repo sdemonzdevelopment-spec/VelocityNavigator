@@ -86,7 +86,7 @@ public final class FirstRunHandler {
             logger.info("  {}", wikiUrl);
             logger.info("  ");
             logger.info("  We would love to hear your feedback! Join our Discord:");
-            logger.info("  https://discord.gg/demonz");
+            logger.info("  https://discord.com/invite/GYsTt96ypf");
             logger.info("=================================================================================");
             logger.info(" ");
         } else if (showUpgrade) {
@@ -96,17 +96,17 @@ public final class FirstRunHandler {
             logger.info("=================================================================================");
             logger.info("  VelocityNavigator has been updated! Here is what's new in this release:");
             logger.info("  ");
-            logger.info("  • Bedrock & Geyser Support: Seamless routing for Bedrock players.");
-            logger.info("  • Rich Configuration: Comments, wiki anchors, and auto-validation.");
-            logger.info("  • Legacy Color Conversion: MiniMessage transition made easy.");
-            logger.info("  • Status Dashboard: High-fidelity `/vn servers` dashboard.");
-            logger.info("  • Operations & Reliability: Exponential backoffs and empty lobby strategies.");
+            logger.info("  • Embedded Prometheus Exporter & Admin Panel: Real-time metrics and Grafana setup.");
+            logger.info("  • Interactive Selector Menus: Bedrock Form GUI and Java click-to-connect chat menu.");
+            logger.info("  • Ping-Based Routing (latency): Route players dynamically to the lowest latency lobby.");
+            logger.info("  • Hardened Security: Safe menu selections blocking drain/circuit-breaker bypasses.");
+            logger.info("  • Redesigned TOML (v6): Beautiful, grouped, and self-documenting configuration.");
             logger.info("  ");
             logger.info("  Read the full v{} release notes and upgrade guide at:", currentVersion);
             logger.info("  {}", wikiUrl);
             logger.info("  ");
             logger.info("  We would love to hear your feedback! Join our Discord:");
-            logger.info("  https://discord.gg/demonz");
+            logger.info("  https://discord.com/invite/GYsTt96ypf");
             logger.info("=================================================================================");
             logger.info(" ");
         }

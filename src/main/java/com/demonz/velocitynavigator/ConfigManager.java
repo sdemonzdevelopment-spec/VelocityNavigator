@@ -618,7 +618,7 @@ public final class ConfigManager {
         b.append("# ║     Premium lobby navigation for Velocity proxy networks        ║\n");
         b.append("# ╠══════════════════════════════════════════════════════════════════╣\n");
         b.append("# ║  Docs & Wiki : ").append(padRight(wiki, 49)).append("║\n");
-        b.append("# ║  Support     : https://discord.gg/demonz                        ║\n");
+        b.append("# ║  Support     : https://discord.com/invite/GYsTt96ypf            ║\n");
         b.append("# ║  bStats      : https://bstats.org/plugin/velocity/Velocity%20Navigator/28341 ║\n");
         b.append("# ╚══════════════════════════════════════════════════════════════════╝\n");
         b.append("#\n");
@@ -1001,7 +1001,7 @@ public final class ConfigManager {
         b.append("# ║  Thank you for using VelocityNavigator!                        ║\n");
         b.append("# ║  Built with ❤ by DemonZ Development                            ║\n");
         b.append("# ║                                                                 ║\n");
-        b.append("# ║  Questions? → https://discord.gg/demonz                         ║\n");
+        b.append("# ║  Questions? → https://discord.com/invite/GYsTt96ypf             ║\n");
         b.append("# ║  Found a bug? → https://github.com/sdemonzdevelopment-spec/     ║\n");
         b.append("# ║                 VelocityNavigator/issues                        ║\n");
         b.append("# ╚══════════════════════════════════════════════════════════════════╝\n");

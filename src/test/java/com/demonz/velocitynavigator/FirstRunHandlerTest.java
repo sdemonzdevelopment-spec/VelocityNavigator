@@ -112,7 +112,7 @@ class FirstRunHandlerTest {
 
         // Verify upgrade digest was logged
         assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Upgraded Successfully")));
-        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Bedrock & Geyser Support")));
+        assertTrue(infoLogs.stream().anyMatch(log -> log.contains("Interactive Selector Menus")));
     }
 
     @Test

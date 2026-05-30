@@ -144,7 +144,7 @@ public final class VelocityNavigator implements NavigatorAPI {
 
             long startupMillis = System.currentTimeMillis() - startedAt;
             logger.info("VelocityNavigator v{} enabled in {}ms.", pluginVersion, startupMillis);
-            logger.info("[VelocityNavigator] We would love to hear your feedback! Join our Discord: https://discord.gg/demonz");
+            logger.info("[VelocityNavigator] We would love to hear your feedback! Join our Discord: https://discord.com/invite/GYsTt96ypf");
         } catch (IOException exception) {
             logger.error("VelocityNavigator could not start because navigator.toml could not be loaded.", exception);
         } catch (Exception exception) {

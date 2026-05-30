@@ -531,6 +531,7 @@ bindHost = "127.0.0.1"
 | `prometheus.port` | int | `9225` | Port to expose `/metrics` endpoint. **New in v4.2.** |
 | `prometheus.bindHost` | string | `"127.0.0.1"` | Host/IP to bind the metrics server. **New in v4.2.** |
 
+```toml
 [circuit_breaker]
 enabled = true
 failure_threshold = 3
