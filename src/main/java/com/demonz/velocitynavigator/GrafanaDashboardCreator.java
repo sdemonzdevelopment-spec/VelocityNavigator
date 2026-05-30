@@ -692,7 +692,7 @@ public final class GrafanaDashboardCreator {
                     "uid": "prometheus"
                   },
                   "editorMode": "code",
-                  "expr": "velocitynavigator_circuit_breaker_trips_total{server=~\"^$server$\"}",
+                  "expr": "velocitynavigator_circuit_breaker_trips_total{server=~\\"^$server$\\"}",
                   "legendFormat": "{{server}}",
                   "range": true,
                   "refId": "A"
